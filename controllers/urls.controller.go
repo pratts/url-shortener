@@ -1,11 +1,11 @@
 package controllers
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"shortener/models"
 	"shortener/services"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func Init() {
@@ -13,66 +13,43 @@ func Init() {
 }
 
 func InitUrls() {
-	http.HandleFunc("/", urlHandler)
+	app := fiber.New()
+	app.Get("/:code", expand)
+	app.Post("/", shorten)
 
 	fmt.Println("Server started at http://localhost:8080")
-	http.ListenAndServe(":8080", nil)
+
+	app.Listen(":8080")
 }
 
-func urlHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("urlHandler called with path:", r.URL.Path, " method:", r.Method)
-	if r.Method == http.MethodGet {
-		expandUrl(w, r)
-	} else if r.Method == http.MethodPost {
-		shortenURL(w, r)
-	} else {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
+func shorten(ctx *fiber.Ctx) error {
+	fmt.Println("shorten called")
 
-func shortenURL(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("ShortenURL called")
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	body := r.Body
-	defer body.Close()
-
-	urlInput := models.UrlInput{}
-	err := json.NewDecoder(body).Decode(&urlInput)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
+	var urlInput models.UrlInput
+	if err := ctx.BodyParser(&urlInput); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
 	}
 	if urlInput.URL == "" {
-		http.Error(w, "URL is required", http.StatusBadRequest)
-		return
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "URL is required",
+		})
 	}
-	response := services.Shorten(urlInput.URL)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
-	w.Write(nil)
+	response := services.Shorten(urlInput.URL)
+	return ctx.Status(fiber.StatusCreated).JSON(response)
 }
 
-func expandUrl(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("decodeUrl called")
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	fmt.Println("path: ", r.URL.Path)
-	code := r.URL.Path[len("/"):] // Extract the code from the URL path
-	fmt.Println("code: ", code)
-	originalURL, err := services.Expand(code) // Call ExpandUrl with the extracted code
-	fmt.Println("originalURL: ", originalURL)
-	fmt.Println("err: ", err)
+func expand(ctx *fiber.Ctx) error {
+	code := ctx.Params("code")
+	fmt.Println("expand called with code:", code)
+	originalURL, err := services.Expand(code)
 	if err != nil {
-		http.Error(w, "URL not found", http.StatusNotFound)
-		return
+		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "URL not found",
+		})
 	}
-	fmt.Println("Redirecting to original URL: ", originalURL)
-	http.Redirect(w, r, originalURL, http.StatusFound)
+
+	return ctx.Status(fiber.StatusSeeOther).Redirect(originalURL)
 }

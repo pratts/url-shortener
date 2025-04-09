@@ -20,7 +20,6 @@ func InitDb() {
 		dbConfig.Password,
 		dbConfig.Database,
 	)
-	fmt.Println(connectionString)
 
 	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
 
@@ -28,6 +27,7 @@ func InitDb() {
 		panic("failed to connect to the database")
 	}
 
-	db.AutoMigrate(&User{}, &ShortenedURL{})
+	db.AutoMigrate(&User{})
+	db.AutoMigrate(&ShortenedURL{})
 	dbObj = db
 }

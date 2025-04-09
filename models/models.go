@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var dbObj *gorm.DB
+var DBObj *gorm.DB
 
 func InitDb() {
 	dbConfig := configs.PgConfig
@@ -27,7 +27,7 @@ func InitDb() {
 		panic("failed to connect to the database")
 	}
 
-	db.AutoMigrate(&User{})
 	db.AutoMigrate(&ShortenedURL{})
-	dbObj = db
+	db.AutoMigrate(&User{})
+	DBObj = db
 }

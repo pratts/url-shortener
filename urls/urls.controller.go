@@ -13,8 +13,8 @@ func Init(app *fiber.App) {
 }
 
 func initUrls(app *fiber.App) {
-	app.Get("/c/:code", expand)
-	app.Post("/c", shorten)
+	app.Get("/:code", expand)
+	app.Post("/", shorten)
 }
 
 func shorten(ctx *fiber.Ctx) error {

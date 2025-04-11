@@ -14,5 +14,9 @@ type UrlInput struct {
 }
 
 type UrlDto struct {
-	Id string `json:"id"`
+	Id        string `json:"id"`
+	URL       string `json:"url"`
+	ShortUrl  string `json:"short_url"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
 }

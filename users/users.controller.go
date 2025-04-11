@@ -6,7 +6,7 @@ import (
 
 func Init(app *fiber.App) {
 	app.Post("/users/login", login)
-	app.Post("/users", register)
+	app.Post("/users/register", register)
 	app.Get("/users/:userid", getUserInfo)
 	app.Patch("/users/:userid", updateUserInfo)
 }

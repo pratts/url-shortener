@@ -1,13 +1,15 @@
 package models
 
+import "time"
+
 type User struct {
-	Id        string `json:"id"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	Verified  bool   `json:"verified"`
-	Name      string `json:"name"`
-	CreatedAt int64  `json:"created_at"`
-	UpdatedAt int64  `json:"updated_at"`
+	Id        uint64 `gorm:"primaryKey autoIncrement"`
+	Email     string `gorm:"unique;not null;index"`
+	Password  string
+	Verified  bool
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type UserCreateDto struct {
@@ -22,7 +24,7 @@ type UserUpdateDto struct {
 }
 
 type UserDto struct {
-	Id       string `json:"id"`
+	Id       uint64 `json:"id"`
 	Email    string `json:"email"`
 	Verified bool   `json:"verified"`
 	Name     string `json:"name"`

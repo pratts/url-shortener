@@ -4,32 +4,59 @@ import (
 	"shortener/models"
 )
 
-func ValidateUser(userName string, password string) (models.User, error) {
+func ValidateUser(userName string, password string) (models.UserDto, error) {
 	var user models.User
 	if err := models.DBObj.Where("user_name = ? AND password = ?", userName, password).First(&user).Error; err != nil {
-		return models.User{}, err
+		return models.UserDto{}, err
 	}
-	return user, nil
+
+	userDto := models.UserDto{
+		Id:       user.Id,
+		Email:    user.Email,
+		Verified: user.Verified,
+		Name:     user.Name,
+	}
+	return userDto, nil
 }
 
-func GetUserById(id string) (models.User, error) {
+func GetUserById(id uint64) (models.UserDto, error) {
 	var user models.User
 	if err := models.DBObj.Where("id = ?", id).First(&user).Error; err != nil {
-		return models.User{}, err
+		return models.UserDto{}, err
 	}
-	return user, nil
+	userDto := models.UserDto{
+		Id:       user.Id,
+		Email:    user.Email,
+		Verified: user.Verified,
+		Name:     user.Name,
+	}
+	return userDto, nil
 }
 
-func CreateUser(user models.User) (models.User, error) {
+func CreateUser(dto models.UserCreateDto) (models.UserDto, error) {
+	user := models.User{
+		Email:    dto.Email,
+		Password: dto.Password,
+		Name:     dto.Name,
+		Verified: false,
+	}
 	if err := models.DBObj.Create(&user).Error; err != nil {
-		return models.User{}, err
+		return models.UserDto{}, err
 	}
-	return user, nil
+	userDto := models.UserDto{
+		Id:       user.Id,
+		Email:    user.Email,
+		Verified: user.Verified,
+		Name:     user.Name,
+	}
+	return userDto, nil
 }
 
-func UpdateUser(user models.User) (models.User, error) {
-	if err := models.DBObj.Save(&user).Error; err != nil {
-		return models.User{}, err
+func UpdateUser(id uint64, update models.UserUpdateDto) (models.UserDto, error) {
+	res := models.DBObj.Model(&models.User{}).Where("id=?", id).Updates(update)
+	if res.Error != nil {
+		return models.UserDto{}, res.Error
 	}
-	return user, nil
+
+	return GetUserById(id)
 }

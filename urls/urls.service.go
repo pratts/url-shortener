@@ -4,16 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"shortener/models"
-	"sync"
 	"time"
 )
-
-var urlMap map[string]models.ShortenedURL
-var mu sync.Mutex
-
-func InitMap() {
-	urlMap = make(map[string]models.ShortenedURL)
-}
 
 func generateCode() string {
 	const base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -28,10 +20,12 @@ func generateCode() string {
 		for i := 0; i < length; i++ {
 			code += string(base62[rand.Intn(len(base62))])
 		}
-		_, exists := urlMap[code]
-		if !exists {
-			return code
-		}
+		return code
+		// models.DBObj.
+		// _, exists := urlMap[code]
+		// if !exists {
+		// 	return code
+		// }
 	}
 }
 
@@ -41,22 +35,27 @@ func Shorten(url string) models.ShortenedURL {
 		panic("Failed to generate a unique URL code")
 	}
 	shortenedUrlDetails := models.ShortenedURL{
-		Id:        code,
 		ShortCode: code,
 		LongURL:   url,
 		CreatedAt: time.Now().UnixMilli(),
 		UpdatedAt: time.Now().UnixMilli(),
 	}
 
-	mu.Lock()
-	defer mu.Unlock()
-	urlMap[code] = shortenedUrlDetails
+	db := models.DBObj.Create(&shortenedUrlDetails)
+	if db.Error != nil {
+		fmt.Println("Error saving URL to database:", db.Error)
+		panic("Failed to save URL to database")
+	}
 	return shortenedUrlDetails
 }
 
 func Expand(shortened string) (string, error) {
-	if details, exists := urlMap[shortened]; exists {
-		return details.LongURL, nil
+	data := models.ShortenedURL{}
+	url := models.DBObj.First(&data, "short_code = ?", shortened)
+	if url.Error == nil {
+		// URL found, return the original URL
+		return data.LongURL, nil
 	}
+	// Check if the shortened URL exists in the map
 	return "", fmt.Errorf("URL not found")
 }

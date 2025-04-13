@@ -2,26 +2,19 @@ package urls
 
 import (
 	"fmt"
-	"shortener/configs"
 
 	"shortener/models"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func Init() {
-	InitMap()
-	initUrls()
+func Init(app *fiber.App) {
+	initUrls(app)
 }
 
-func initUrls() {
-	app := fiber.New()
-	app.Get("/:code", expand)
-	app.Post("/", shorten)
-
-	fmt.Println(fmt.Sprintf("Server is running on port %v", configs.AppConfig.Port))
-
-	app.Listen(fmt.Sprintf(":%v", configs.AppConfig.Port))
+func initUrls(app *fiber.App) {
+	app.Get("/c/:code", expand)
+	app.Post("/c", shorten)
 }
 
 func shorten(ctx *fiber.Ctx) error {

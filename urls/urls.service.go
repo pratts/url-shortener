@@ -3,6 +3,7 @@ package urls
 import (
 	"fmt"
 	"math/rand"
+	"shortener/configs"
 	"shortener/models"
 	"time"
 )
@@ -29,7 +30,7 @@ func generateCode() string {
 	}
 }
 
-func Shorten(url string) models.ShortenedURL {
+func Shorten(url string) models.UrlDto {
 	code := generateCode()
 	if code == "" {
 		panic("Failed to generate a unique URL code")
@@ -46,7 +47,16 @@ func Shorten(url string) models.ShortenedURL {
 		fmt.Println("Error saving URL to database:", db.Error)
 		panic("Failed to save URL to database")
 	}
-	return shortenedUrlDetails
+
+	// Create a URL DTO to return
+	shortenedUrlDetailsDto := models.UrlDto{
+		Id:        fmt.Sprintf("%d", shortenedUrlDetails.Id),
+		URL:       shortenedUrlDetails.LongURL,
+		ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, shortenedUrlDetails.ShortCode),
+		CreatedAt: shortenedUrlDetails.CreatedAt,
+		UpdatedAt: shortenedUrlDetails.UpdatedAt,
+	}
+	return shortenedUrlDetailsDto
 }
 
 func Expand(shortened string) (string, error) {

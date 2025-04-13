@@ -1,6 +1,7 @@
 package users
 
 import (
+	"shortener/auth"
 	"shortener/models"
 	"strconv"
 
@@ -8,11 +9,10 @@ import (
 )
 
 func Init(app *fiber.App) {
-	InitTokenParams()
 	app.Post("/users/login", login)
 	app.Post("/users/register", register)
-	app.Get("/users/:userId", getUserInfo)
-	app.Patch("/users/:userId", updateUserInfo)
+	app.Get("/users/:userId", auth.ValidateAuthHeader, getUserInfo)
+	app.Patch("/users/:userId", auth.ValidateAuthHeader, updateUserInfo)
 }
 
 func login(c *fiber.Ctx) error {
@@ -35,7 +35,7 @@ func login(c *fiber.Ctx) error {
 		})
 	}
 
-	token, err := CreateTokenForUser(&userDto)
+	token, err := auth.CreateTokenForUser(&userDto)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create token",

@@ -1,4 +1,4 @@
-package users
+package auth
 
 import (
 	"shortener/configs"
@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -65,4 +66,25 @@ func ValidateToken(token string) (models.UserDto, error) {
 		return models.UserDto{}, jwt.ErrTokenExpired
 	}
 	return models.UserDto{Id: uint64(userId)}, nil
+}
+
+func ValidateAuthHeader(ctx *fiber.Ctx) error {
+	token := ctx.Get("Authorization")
+	if token == "" {
+		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Authorization header is missing",
+		})
+	}
+
+	if len(token) > 7 && token[:7] == "Bearer " {
+		token = token[7:]
+	}
+	user, err := ValidateToken(token)
+	if err != nil {
+		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid token",
+		})
+	}
+	ctx.Locals("user", user)
+	return ctx.Next()
 }

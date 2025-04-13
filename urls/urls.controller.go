@@ -5,6 +5,8 @@ import (
 
 	"shortener/models"
 
+	"shortener/auth"
+
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -14,12 +16,10 @@ func Init(app *fiber.App) {
 
 func initUrls(app *fiber.App) {
 	app.Get("/:code", expand)
-	app.Post("/", shorten)
+	app.Post("/", auth.ValidateAuthHeader, shorten)
 }
 
 func shorten(ctx *fiber.Ctx) error {
-	fmt.Println("shorten called")
-
 	var urlInput models.UrlInput
 	if err := ctx.BodyParser(&urlInput); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{

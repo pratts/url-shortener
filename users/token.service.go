@@ -32,3 +32,37 @@ func CreateTokenForUser(u *models.UserLoginResponseDto) (string, error) {
 
 	return tokenString, nil
 }
+
+func ValidateToken(token string) (models.UserDto, error) {
+	claims := jwt.MapClaims{}
+	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+		return secretKey, nil
+	})
+	if err != nil {
+		return models.UserDto{}, err
+	}
+
+	sub, err := claims.GetSubject()
+	if err != nil {
+		return models.UserDto{}, err
+	}
+	if sub == "" {
+		return models.UserDto{}, jwt.ErrTokenInvalidSubject
+	}
+	userId, err := strconv.Atoi(sub)
+	if err != nil {
+		return models.UserDto{}, err
+	}
+	if userId <= 0 {
+		return models.UserDto{}, jwt.ErrTokenInvalidSubject
+	}
+	// Check if the token is expired
+	exp, err := claims.GetExpirationTime()
+	if err != nil {
+		return models.UserDto{}, err
+	}
+	if exp.Before(time.Now()) {
+		return models.UserDto{}, jwt.ErrTokenExpired
+	}
+	return models.UserDto{Id: uint64(userId)}, nil
+}

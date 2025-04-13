@@ -1,12 +1,14 @@
 package models
 
+import "time"
+
 type ShortenedURL struct {
 	Id        uint64 `gorm:"primaryKey autoIncrement"`
 	CreatedBy uint64
 	LongURL   string
 	ShortCode string `gorm:"index"`
-	CreatedAt int64
-	UpdatedAt int64
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type UrlInput struct {

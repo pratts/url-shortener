@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"shortener/configs"
 	"shortener/models"
-	"time"
 )
 
 func generateCode() string {
@@ -38,8 +37,6 @@ func Shorten(url string) models.UrlDto {
 	shortenedUrlDetails := models.ShortenedURL{
 		ShortCode: code,
 		LongURL:   url,
-		CreatedAt: time.Now().UnixMilli(),
-		UpdatedAt: time.Now().UnixMilli(),
 	}
 
 	db := models.DBObj.Create(&shortenedUrlDetails)
@@ -50,11 +47,9 @@ func Shorten(url string) models.UrlDto {
 
 	// Create a URL DTO to return
 	shortenedUrlDetailsDto := models.UrlDto{
-		Id:        fmt.Sprintf("%d", shortenedUrlDetails.Id),
-		URL:       shortenedUrlDetails.LongURL,
-		ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, shortenedUrlDetails.ShortCode),
-		CreatedAt: shortenedUrlDetails.CreatedAt,
-		UpdatedAt: shortenedUrlDetails.UpdatedAt,
+		Id:       fmt.Sprintf("%d", shortenedUrlDetails.Id),
+		URL:      shortenedUrlDetails.LongURL,
+		ShortUrl: fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, shortenedUrlDetails.ShortCode),
 	}
 	return shortenedUrlDetailsDto
 }

@@ -18,6 +18,9 @@ func GetEnv(key string) string {
 }
 
 func loadConfigFile() {
+	if GetEnv("ENV") == "production" {
+		return
+	}
 	err := godotenv.Load(".env")
 	if err != nil {
 		panic("Unable to load env file")

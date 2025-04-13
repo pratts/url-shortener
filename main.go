@@ -18,8 +18,8 @@ func main() {
 
 	fmt.Println("Initializing URL and User services...")
 	app := fiber.New()
-	urls.Init(app)
 	users.Init(app)
+	urls.Init(app)
 	fmt.Println("URL and User services initialized successfully")
 
 	app.All("*", func(c *fiber.Ctx) error {

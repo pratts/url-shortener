@@ -42,8 +42,8 @@ func Shorten(url string) models.ShortenedURL {
 	}
 	shortenedUrlDetails := models.ShortenedURL{
 		Id:        code,
-		Code:      code,
-		URL:       url,
+		ShortCode: code,
+		LongURL:   url,
 		CreatedAt: time.Now().UnixMilli(),
 		UpdatedAt: time.Now().UnixMilli(),
 	}
@@ -56,7 +56,7 @@ func Shorten(url string) models.ShortenedURL {
 
 func Expand(shortened string) (string, error) {
 	if details, exists := urlMap[shortened]; exists {
-		return details.URL, nil
+		return details.LongURL, nil
 	}
 	return "", fmt.Errorf("URL not found")
 }

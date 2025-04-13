@@ -8,6 +8,7 @@ import (
 )
 
 func Init(app *fiber.App) {
+	InitTokenParams()
 	app.Post("/users/login", login)
 	app.Post("/users/register", register)
 	app.Get("/users/:userId", getUserInfo)
@@ -16,7 +17,32 @@ func Init(app *fiber.App) {
 
 func login(c *fiber.Ctx) error {
 	// Implement login logic here
-	return nil
+	loginDto := models.UserLoginDto{}
+	if err := c.BodyParser(&loginDto); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+	if loginDto.Email == "" || loginDto.Password == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Email and password are required",
+		})
+	}
+	userDto, err := ValidateUser(loginDto.Email, loginDto.Password)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid email or password",
+		})
+	}
+
+	token, err := CreateTokenForUser(&userDto)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to create token",
+		})
+	}
+	userDto.Token = token
+	return c.Status(fiber.StatusOK).JSON(userDto)
 }
 
 func register(c *fiber.Ctx) error {

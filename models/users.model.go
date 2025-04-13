@@ -12,6 +12,11 @@ type User struct {
 	UpdatedAt time.Time
 }
 
+type UserLoginDto struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 type UserCreateDto struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -28,4 +33,11 @@ type UserDto struct {
 	Email    string `json:"email"`
 	Verified bool   `json:"verified"`
 	Name     string `json:"name"`
+}
+
+type UserLoginResponseDto struct {
+	Id    uint64 `json:"id"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
+	Token string `json:"token"`
 }

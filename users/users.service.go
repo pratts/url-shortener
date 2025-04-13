@@ -4,17 +4,16 @@ import (
 	"shortener/models"
 )
 
-func ValidateUser(userName string, password string) (models.UserDto, error) {
+func ValidateUser(userName string, password string) (models.UserLoginResponseDto, error) {
 	var user models.User
-	if err := models.DBObj.Where("user_name = ? AND password = ?", userName, password).First(&user).Error; err != nil {
-		return models.UserDto{}, err
+	if err := models.DBObj.Where("email = ? AND password = ?", userName, password).First(&user).Error; err != nil {
+		return models.UserLoginResponseDto{}, err
 	}
 
-	userDto := models.UserDto{
-		Id:       user.Id,
-		Email:    user.Email,
-		Verified: user.Verified,
-		Name:     user.Name,
+	userDto := models.UserLoginResponseDto{
+		Id:    user.Id,
+		Email: user.Email,
+		Name:  user.Name,
 	}
 	return userDto, nil
 }

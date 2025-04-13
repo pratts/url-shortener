@@ -2,13 +2,16 @@ package configs
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
 
 type APP_CONFIG struct {
-	Port   string
-	ApiUrl string
+	Port               string
+	ApiUrl             string
+	JwtSigningKey      string
+	JwtExpiryTimeHours int
 }
 
 var AppConfig APP_CONFIG
@@ -38,9 +41,16 @@ func loadDefaultConfig() {
 		API_URL = "http://localhost:8080"
 	}
 
+	jwtExpiryTimeHours, err := strconv.Atoi(GetEnv("JWT_EXPIRY_TIME_HOURS"))
+	if err != nil {
+		jwtExpiryTimeHours = 3600 // Default to 1 hour
+	}
+
 	AppConfig = APP_CONFIG{
-		Port:   PORT,
-		ApiUrl: API_URL,
+		Port:               PORT,
+		ApiUrl:             API_URL,
+		JwtSigningKey:      GetEnv("JWT_SIGNING_KEY"),
+		JwtExpiryTimeHours: jwtExpiryTimeHours,
 	}
 }
 

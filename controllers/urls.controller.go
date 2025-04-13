@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"shortener/configs"
 	"shortener/models"
 	"shortener/services"
 
@@ -17,9 +18,9 @@ func InitUrls() {
 	app.Get("/:code", expand)
 	app.Post("/", shorten)
 
-	fmt.Println("Server started at http://localhost:8080")
+	fmt.Println(fmt.Sprintf("Server is running on port %v", configs.AppConfig.Port))
 
-	app.Listen(":8080")
+	app.Listen(fmt.Sprintf(":%v", configs.AppConfig.Port))
 }
 
 func shorten(ctx *fiber.Ctx) error {

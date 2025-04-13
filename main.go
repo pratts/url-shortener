@@ -2,13 +2,12 @@ package main
 
 import (
 	"shortener/configs"
-	"shortener/controllers"
 	"shortener/models"
+	shortener "shortener/urls"
 )
 
 func main() {
 	configs.InitConfig()
 	models.InitDb()
-	controllers.Init()
-	controllers.InitUrls()
+	shortener.Init()
 }

@@ -1,19 +1,20 @@
-package controllers
+package urls
 
 import (
 	"fmt"
 	"shortener/configs"
+
 	"shortener/models"
-	"shortener/services"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func Init() {
-	services.InitMap()
+	InitMap()
+	initUrls()
 }
 
-func InitUrls() {
+func initUrls() {
 	app := fiber.New()
 	app.Get("/:code", expand)
 	app.Post("/", shorten)
@@ -38,14 +39,14 @@ func shorten(ctx *fiber.Ctx) error {
 		})
 	}
 
-	response := services.Shorten(urlInput.URL)
+	response := Shorten(urlInput.URL)
 	return ctx.Status(fiber.StatusCreated).JSON(response)
 }
 
 func expand(ctx *fiber.Ctx) error {
 	code := ctx.Params("code")
 	fmt.Println("expand called with code:", code)
-	originalURL, err := services.Expand(code)
+	originalURL, err := Expand(code)
 	if err != nil {
 		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "URL not found",

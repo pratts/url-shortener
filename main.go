@@ -20,8 +20,10 @@ func main() {
 
 	fmt.Println("Initializing URL and User services...")
 	app := fiber.New()
-	users.Init(app)
-	urls.Init(app)
+
+	apiV1 := app.Group("/api/v1")
+	apiV1.Route("/users", users.InitUserRoutes())
+	apiV1.Route("/urls", urls.InitUrlRoutes())
 	fmt.Println("URL and User services initialized successfully")
 
 	app.All("*", func(c *fiber.Ctx) error {

@@ -8,13 +8,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func Init(app *fiber.App) {
-	initUrls(app)
-}
-
-func initUrls(app *fiber.App) {
-	app.Get("/:code", expand)
-	app.Post("/", auth.ValidateAuthHeader, shorten)
+func InitUrlRoutes() func(router fiber.Router) {
+	return func(router fiber.Router) {
+		router.Post("/", auth.ValidateAuthHeader, shorten)
+		router.Get("/:code", expand)
+	}
 }
 
 func shorten(ctx *fiber.Ctx) error {

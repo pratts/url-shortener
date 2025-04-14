@@ -8,11 +8,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func Init(app *fiber.App) {
-	app.Post("/users/login", login)
-	app.Post("/users/register", register)
-	app.Get("/users/:userId", auth.ValidateAuthHeader, getUserInfo)
-	app.Patch("/users/:userId", auth.ValidateAuthHeader, updateUserInfo)
+func InitUserRoutes() func(router fiber.Router) {
+	return func(router fiber.Router) {
+		router.Post("/login", login)
+		router.Post("/register", register)
+		router.Get("/:userId", auth.ValidateAuthHeader, getUserInfo)
+		router.Patch("/:userId", auth.ValidateAuthHeader, updateUserInfo)
+	}
 }
 
 func login(c *fiber.Ctx) error {

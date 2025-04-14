@@ -1,8 +1,6 @@
 package urls
 
 import (
-	"fmt"
-
 	"shortener/models"
 
 	"shortener/auth"
@@ -38,7 +36,6 @@ func shorten(ctx *fiber.Ctx) error {
 
 func expand(ctx *fiber.Ctx) error {
 	code := ctx.Params("code")
-	fmt.Println("expand called with code:", code)
 	originalURL, err := Expand(code)
 	if err != nil {
 		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{

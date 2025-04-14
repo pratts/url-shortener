@@ -41,7 +41,6 @@ func Shorten(url string) models.UrlDto {
 
 	db := models.DBObj.Create(&shortenedUrlDetails)
 	if db.Error != nil {
-		fmt.Println("Error saving URL to database:", db.Error)
 		panic("Failed to save URL to database")
 	}
 

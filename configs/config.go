@@ -9,6 +9,7 @@ import (
 
 type APP_CONFIG struct {
 	Port               string
+	AdminPort          string
 	ApiUrl             string
 	JwtSigningKey      string
 	JwtExpiryTimeHours int
@@ -33,7 +34,12 @@ func loadConfigFile() {
 func loadDefaultConfig() {
 	PORT := GetEnv("PORT")
 	if PORT == "" {
-		PORT = "8080"
+		PORT = "8085"
+	}
+
+	ADMIN_PORT := GetEnv("ADMIN_PORT")
+	if ADMIN_PORT == "" {
+		ADMIN_PORT = "8086"
 	}
 
 	API_URL := GetEnv("API_URL")
@@ -51,6 +57,7 @@ func loadDefaultConfig() {
 		ApiUrl:             API_URL,
 		JwtSigningKey:      GetEnv("JWT_SIGNING_KEY"),
 		JwtExpiryTimeHours: jwtExpiryTimeHours,
+		AdminPort:          ADMIN_PORT,
 	}
 }
 

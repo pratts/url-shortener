@@ -27,3 +27,9 @@ go.work.sum
 # files for air
 tmp/*
 .air.toml
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production

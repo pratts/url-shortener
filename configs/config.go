@@ -8,7 +8,7 @@ import (
 )
 
 type APP_CONFIG struct {
-	Port               string
+	RedirectPort       string
 	AdminPort          string
 	ApiUrl             string
 	JwtSigningKey      string
@@ -53,7 +53,7 @@ func loadDefaultConfig() {
 	}
 
 	AppConfig = APP_CONFIG{
-		Port:               PORT,
+		RedirectPort:       PORT,
 		ApiUrl:             API_URL,
 		JwtSigningKey:      GetEnv("JWT_SIGNING_KEY"),
 		JwtExpiryTimeHours: jwtExpiryTimeHours,

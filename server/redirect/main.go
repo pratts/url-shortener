@@ -26,8 +26,8 @@ func main() {
 		})
 	})
 
-	fmt.Printf("Starting server on port %v...\n", configs.AppConfig.AdminPort)
-	if err := app.Listen(fmt.Sprintf(":%v", configs.AppConfig.AdminPort)); err != nil {
+	fmt.Printf("Starting server on port %v...\n", configs.AppConfig.RedirectPort)
+	if err := app.Listen(fmt.Sprintf(":%v", configs.AppConfig.RedirectPort)); err != nil {
 		fmt.Printf("Error starting server: %v\n", err)
 	}
 }

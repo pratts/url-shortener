@@ -1,0 +1,75 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: urlshortener
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7.4
+    ports:
+      - "6379:6379"
+
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    ports:
+      - "8086:8086"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - ENV=${ENV}
+      - PORT=8086
+      - API_URL=${API_URL}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_SCHEMA=${DB_SCHEMA}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_TTL=${REDIS_TTL}
+      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY}
+      - JWT_EXPIRY_TIME_HOURS=${JWT_EXPIRY_TIME_HOURS}
+    env_file:
+      - .env
+
+  redirect:
+    build:
+      context: .
+      dockerfile: Dockerfile.redirect
+    ports:
+      - "8085:8085"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - ENV=${ENV}
+      - PORT=8085
+      - API_URL=${API_URL}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_SCHEMA=${DB_SCHEMA}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_TTL=${REDIS_TTL}
+    env_file:
+      - .env
+
+volumes:
+  pg_data:

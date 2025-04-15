@@ -4,7 +4,7 @@ import "time"
 
 type ShortenedURL struct {
 	Id        uint64 `gorm:"primaryKey autoIncrement"`
-	CreatedBy uint64
+	CreatedBy uint64 `gorm:"index"`
 	LongURL   string
 	ShortCode string `gorm:"index"`
 	CreatedAt time.Time

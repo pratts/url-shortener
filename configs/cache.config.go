@@ -22,11 +22,23 @@ func LoadRedisConfig() {
 	if err != nil {
 		panic("Invalid REDIS_TTL value")
 	}
+
+	db := 0
+	redisDb := GetEnv("REDIS_DB")
+	if redisDb != "" {
+		db, err := strconv.Atoi(redisDb)
+		if err != nil {
+			panic("Invalid REDIS_DB value")
+		}
+		db = db
+	} else {
+		db = 0
+	}
 	RedisConfig = REDIS_CONFIG{
 		Host:     GetEnv("REDIS_HOST"),
 		Port:     port,
 		Password: GetEnv("REDIS_PASSWORD"),
-		Database: 0,
+		Database: db,
 		TTL:      ttl,
 	}
 }

@@ -3,7 +3,6 @@ package users
 import (
 	"shortener/auth"
 	"shortener/models"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -11,9 +10,10 @@ import (
 func InitUserRoutes() func(router fiber.Router) {
 	return func(router fiber.Router) {
 		router.Post("/login", login)
-		router.Post("/register", register)
-		router.Get("/:userId", auth.ValidateAuthHeader, getUserInfo)
-		router.Patch("/:userId", auth.ValidateAuthHeader, updateUserInfo)
+		// router.Post("/register", register)
+		router.Get("/me", auth.ValidateAuthHeader, getUserInfo)
+		// router.Get("/:userId", auth.ValidateAuthHeader, getUserInfo)
+		router.Patch("/me", auth.ValidateAuthHeader, updateUserInfo)
 	}
 }
 
@@ -70,60 +70,41 @@ func register(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(userDto)
 }
 
-func getUserInfo(c *fiber.Ctx) error {
+func getUserInfo(ctx *fiber.Ctx) error {
 	// Implement get user info logic here
-	userId := c.Params("userId")
-	if userId == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "User ID is required",
-		})
-	}
-	userIdUint64, err := strconv.ParseUint(userId, 10, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid user ID",
-		})
-	}
+	user := ctx.Locals("user")
+	userId := user.(models.UserDto).Id
 
-	userDto, err := GetUserById(userIdUint64)
+	userDto, err := GetUserById(userId)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "User not found",
 		})
 	}
-	return c.Status(fiber.StatusOK).JSON(userDto)
+	return ctx.Status(fiber.StatusOK).JSON(userDto)
 }
 
-func updateUserInfo(c *fiber.Ctx) error {
+func updateUserInfo(ctx *fiber.Ctx) error {
 	// Implement update user info logic here
-	userId := c.Params("userId")
-	if userId == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "User ID is required",
-		})
-	}
-	userIdUint64, err := strconv.ParseUint(userId, 10, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid user ID",
-		})
-	}
+	user := ctx.Locals("user")
+	userId := user.(models.UserDto).Id
+
 	updateDto := models.UserUpdateDto{}
-	if err := c.BodyParser(&updateDto); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	if err := ctx.BodyParser(&updateDto); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
 		})
 	}
 	if updateDto.Password == "" && updateDto.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "At least one field (password or name) is required",
 		})
 	}
-	user, err := UpdateUser(userIdUint64, updateDto)
+	user, err := UpdateUser(userId, updateDto)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update user",
 		})
 	}
-	return c.Status(fiber.StatusOK).JSON(user)
+	return ctx.Status(fiber.StatusOK).JSON(user)
 }

@@ -60,17 +60,18 @@ func GetAllShortCodes(userId uint64) ([]models.UrlDto, error) {
 	var urlDtos []models.UrlDto
 	for _, url := range urls {
 		urlDtos = append(urlDtos, models.UrlDto{
-			Id:       url.Id,
-			URL:      url.LongURL,
-			ShortUrl: fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, url.ShortCode),
+			Id:        url.Id,
+			URL:       url.LongURL,
+			ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, url.ShortCode),
+			CreatedAt: url.CreatedAt.String(),
 		})
 	}
 	return urlDtos, nil
 }
 
-func GetUrlDetails(code string, userId uint64) (models.UrlDto, error) {
+func GetUrlDetails(id uint64, userId uint64) (models.UrlDto, error) {
 	var url models.ShortenedURL
-	db := db.DBObj.Where("short_code = ? AND created_by = ?", code, userId).First(&url)
+	db := db.DBObj.Where("id = ? AND created_by = ?", id, userId).First(&url)
 	if db.Error != nil {
 		return models.UrlDto{}, db.Error
 	}
@@ -83,9 +84,9 @@ func GetUrlDetails(code string, userId uint64) (models.UrlDto, error) {
 	return urlDto, nil
 }
 
-func UpdateUrl(code string, urlInput models.UrlInput, userId uint64) (models.UrlDto, error) {
+func UpdateUrl(id uint64, urlInput models.UrlInput, userId uint64) (models.UrlDto, error) {
 	var url models.ShortenedURL
-	result := db.DBObj.Where("short_code = ? AND created_by = ?", code, userId).First(&url)
+	result := db.DBObj.Where("id = ? AND created_by = ?", id, userId).First(&url)
 	if result.Error != nil {
 		return models.UrlDto{}, result.Error
 	}
@@ -104,9 +105,9 @@ func UpdateUrl(code string, urlInput models.UrlInput, userId uint64) (models.Url
 	return urlDto, nil
 }
 
-func DeleteUrl(code string, userId uint64) error {
+func DeleteUrl(id uint64, userId uint64) error {
 	var url models.ShortenedURL
-	result := db.DBObj.Where("short_code = ? AND created_by = ?", code, userId).First(&url)
+	result := db.DBObj.Where("id = ? AND created_by = ?", id, userId).First(&url)
 	if result.Error != nil {
 		return result.Error
 	}

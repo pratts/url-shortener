@@ -23,12 +23,11 @@ func GetEnv(key string) string {
 }
 
 func loadConfig() {
-	if GetEnv("ENV") == "production" {
-		return
-	}
-	err := godotenv.Load(".env")
-	if err != nil {
-		panic("Unable to load env file")
+	if GetEnv("ENV") != "production" {
+		err := godotenv.Load(".env.development")
+		if err != nil {
+			panic("Unable to load env file")
+		}
 	}
 
 	PORT := GetEnv("PORT")

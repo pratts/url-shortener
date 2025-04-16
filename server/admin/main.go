@@ -9,6 +9,7 @@ import (
 	users "shortener/users"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 func main() {
@@ -20,6 +21,13 @@ func main() {
 
 	fmt.Println("Initializing URL and User services...")
 	app := fiber.New()
+
+	app.Use(cors.New(cors.Config{
+		AllowHeaders:     "Origin,Content-Type,Accept,Content-Length,Accept-Language,Accept-Encoding,Connection,Access-Control-Allow-Origin",
+		AllowOrigins:     "http://localhost:3000",
+		AllowCredentials: true,
+		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
+	}))
 
 	apiV1 := app.Group("/api/v1")
 	apiV1.Route("/users", users.InitUserRoutes())

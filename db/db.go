@@ -1,8 +1,9 @@
-package models
+package db
 
 import (
 	"fmt"
 	"shortener/configs"
+	"shortener/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -27,7 +28,7 @@ func InitDb() {
 		panic("failed to connect to the database")
 	}
 
-	db.AutoMigrate(&ShortenedURL{})
-	db.AutoMigrate(&User{})
+	db.AutoMigrate(&models.ShortenedURL{})
+	db.AutoMigrate(&models.User{})
 	DBObj = db
 }

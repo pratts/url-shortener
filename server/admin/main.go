@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"shortener/auth"
 	"shortener/configs"
-	"shortener/models"
+	"shortener/db"
 	urls "shortener/urls"
 	users "shortener/users"
 
@@ -14,7 +14,7 @@ import (
 func main() {
 	fmt.Println("Starting the application...")
 	configs.InitConfig()
-	models.InitDb()
+	db.InitDb()
 	auth.InitTokenParams()
 	fmt.Println("Database initialized successfully")
 

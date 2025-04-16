@@ -1,12 +1,13 @@
 package users
 
 import (
+	"shortener/db"
 	"shortener/models"
 )
 
 func ValidateUser(userName string, password string) (models.UserLoginResponseDto, error) {
 	var user models.User
-	if err := models.DBObj.Where("email = ? AND password = ?", userName, password).First(&user).Error; err != nil {
+	if err := db.DBObj.Where("email = ? AND password = ?", userName, password).First(&user).Error; err != nil {
 		return models.UserLoginResponseDto{}, err
 	}
 
@@ -20,7 +21,7 @@ func ValidateUser(userName string, password string) (models.UserLoginResponseDto
 
 func GetUserById(id uint64) (models.UserDto, error) {
 	var user models.User
-	if err := models.DBObj.Where("id = ?", id).First(&user).Error; err != nil {
+	if err := db.DBObj.Where("id = ?", id).First(&user).Error; err != nil {
 		return models.UserDto{}, err
 	}
 	userDto := models.UserDto{
@@ -39,7 +40,7 @@ func CreateUser(dto models.UserCreateDto) (models.UserDto, error) {
 		Name:     dto.Name,
 		Verified: false,
 	}
-	if err := models.DBObj.Create(&user).Error; err != nil {
+	if err := db.DBObj.Create(&user).Error; err != nil {
 		return models.UserDto{}, err
 	}
 	userDto := models.UserDto{
@@ -52,7 +53,7 @@ func CreateUser(dto models.UserCreateDto) (models.UserDto, error) {
 }
 
 func UpdateUser(id uint64, update models.UserUpdateDto) (models.UserDto, error) {
-	res := models.DBObj.Model(&models.User{}).Where("id=?", id).Updates(update)
+	res := db.DBObj.Model(&models.User{}).Where("id=?", id).Updates(update)
 	if res.Error != nil {
 		return models.UserDto{}, res.Error
 	}

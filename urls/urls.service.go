@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"shortener/configs"
+	"shortener/db"
 	"shortener/models"
 )
 
@@ -35,7 +36,7 @@ func CreateShortCode(url string, userId uint64) models.UrlDto {
 		CreatedBy: userId,
 	}
 
-	db := models.DBObj.Create(&shortenedUrlDetails)
+	db := db.DBObj.Create(&shortenedUrlDetails)
 	if db.Error != nil {
 		panic("Failed to save URL to database")
 	}
@@ -51,7 +52,7 @@ func CreateShortCode(url string, userId uint64) models.UrlDto {
 
 func GetAllShortCodes(userId uint64) ([]models.UrlDto, error) {
 	var urls []models.ShortenedURL
-	db := models.DBObj.Where("created_by = ?", userId).Find(&urls)
+	db := db.DBObj.Where("created_by = ?", userId).Find(&urls)
 	if db.Error != nil {
 		return nil, db.Error
 	}
@@ -69,7 +70,7 @@ func GetAllShortCodes(userId uint64) ([]models.UrlDto, error) {
 
 func GetUrlDetails(code string, userId uint64) (models.UrlDto, error) {
 	var url models.ShortenedURL
-	db := models.DBObj.Where("short_code = ? AND created_by = ?", code, userId).First(&url)
+	db := db.DBObj.Where("short_code = ? AND created_by = ?", code, userId).First(&url)
 	if db.Error != nil {
 		return models.UrlDto{}, db.Error
 	}
@@ -84,15 +85,15 @@ func GetUrlDetails(code string, userId uint64) (models.UrlDto, error) {
 
 func UpdateUrl(code string, urlInput models.UrlInput, userId uint64) (models.UrlDto, error) {
 	var url models.ShortenedURL
-	db := models.DBObj.Where("short_code = ? AND created_by = ?", code, userId).First(&url)
-	if db.Error != nil {
-		return models.UrlDto{}, db.Error
+	result := db.DBObj.Where("short_code = ? AND created_by = ?", code, userId).First(&url)
+	if result.Error != nil {
+		return models.UrlDto{}, result.Error
 	}
 
 	url.LongURL = urlInput.URL
-	db = models.DBObj.Save(&url)
-	if db.Error != nil {
-		return models.UrlDto{}, db.Error
+	result = db.DBObj.Save(&url)
+	if result.Error != nil {
+		return models.UrlDto{}, result.Error
 	}
 
 	urlDto := models.UrlDto{
@@ -105,21 +106,21 @@ func UpdateUrl(code string, urlInput models.UrlInput, userId uint64) (models.Url
 
 func DeleteUrl(code string, userId uint64) error {
 	var url models.ShortenedURL
-	db := models.DBObj.Where("short_code = ? AND created_by = ?", code, userId).First(&url)
-	if db.Error != nil {
-		return db.Error
+	result := db.DBObj.Where("short_code = ? AND created_by = ?", code, userId).First(&url)
+	if result.Error != nil {
+		return result.Error
 	}
 
-	db = models.DBObj.Delete(&url)
-	if db.Error != nil {
-		return db.Error
+	result = db.DBObj.Delete(&url)
+	if result.Error != nil {
+		return result.Error
 	}
 	return nil
 }
 
 func Expand(shortened string) (string, error) {
 	data := models.ShortenedURL{}
-	url := models.DBObj.First(&data, "short_code = ?", shortened)
+	url := db.DBObj.First(&data, "short_code = ?", shortened)
 	if url.Error == nil {
 		// URL found, return the original URL
 		return data.LongURL, nil

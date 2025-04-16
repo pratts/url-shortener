@@ -12,7 +12,6 @@ func RedirectUrl(ctx *fiber.Ctx) error {
 
 	val, err := cache.GetFromCache(code)
 	if err == nil && val != "" {
-		fmt.Println("Cache hit for code:", code)
 		return ctx.Status(fiber.StatusSeeOther).Redirect(val)
 	}
 	originalURL, err := Expand(code)

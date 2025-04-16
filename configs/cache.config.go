@@ -26,11 +26,11 @@ func LoadRedisConfig() {
 	db := 0
 	redisDb := GetEnv("REDIS_DB")
 	if redisDb != "" {
-		db, err := strconv.Atoi(redisDb)
+		rdb, err := strconv.Atoi(redisDb)
 		if err != nil {
 			panic("Invalid REDIS_DB value")
 		}
-		db = db
+		db = rdb
 	} else {
 		db = 0
 	}

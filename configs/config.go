@@ -13,6 +13,7 @@ type APP_CONFIG struct {
 	ApiUrl             string
 	JwtSigningKey      string
 	JwtExpiryTimeHours int
+	CORSOriginList     string
 }
 
 var AppConfig APP_CONFIG
@@ -21,7 +22,7 @@ func GetEnv(key string) string {
 	return os.Getenv(key)
 }
 
-func loadConfigFile() {
+func loadConfig() {
 	if GetEnv("ENV") == "production" {
 		return
 	}
@@ -29,9 +30,7 @@ func loadConfigFile() {
 	if err != nil {
 		panic("Unable to load env file")
 	}
-}
 
-func loadDefaultConfig() {
 	PORT := GetEnv("PORT")
 	if PORT == "" {
 		PORT = "8085"
@@ -52,18 +51,23 @@ func loadDefaultConfig() {
 		jwtExpiryTimeHours = 3600 // Default to 1 hour
 	}
 
+	corsOriginList := GetEnv("CORS_ORIGINS")
+	if corsOriginList == "" {
+		corsOriginList = "*"
+	}
+
 	AppConfig = APP_CONFIG{
 		RedirectPort:       PORT,
 		ApiUrl:             API_URL,
 		JwtSigningKey:      GetEnv("JWT_SIGNING_KEY"),
 		JwtExpiryTimeHours: jwtExpiryTimeHours,
 		AdminPort:          ADMIN_PORT,
+		CORSOriginList:     corsOriginList,
 	}
 }
 
 func InitConfig() {
-	loadConfigFile()
-	loadDefaultConfig()
+	loadConfig()
 
 	LoadRedisConfig()
 	LoadPostgresConfig()

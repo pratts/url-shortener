@@ -42,6 +42,7 @@ services:
       - REDIS_TTL=${REDIS_TTL}
       - JWT_SIGNING_KEY=${JWT_SIGNING_KEY}
       - JWT_EXPIRY_TIME_HOURS=${JWT_EXPIRY_TIME_HOURS}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     env_file:
       - .env
 

@@ -1,55 +1,70 @@
 # url-shortener
 A basic URL shortening service
 
-This is a hobby project to learn Golang. The application starts web server that takes a long URL as input and returns a shortened version of it. The shortened URL can then be used to redirect to the original long URL. The application uses an in-memory store to map shortened URLs to their original counterparts.
+This is a hobby project to learn Golang. The application has 2 components:
+1. Admin Service: This is a RESTful API server that allows users to shorten URLs. It provides 
+    - A user interface for users to input long URLs and receive shortened versions.
+    - A list of previously shortened URLs.
+2. Url Redirector: This is a simple HTTP server that redirects requests for shortened URLs to their original long URLs.
 
-## Steps to run the application
-> 1. Clone the repository
-> 2. Change directory to the project folder
-> 3. Execute the command `go mod tidy` to download the dependencies
-> 4. Run the application using `go run main.go`
+## Project Structure
+```
+url-shortener/
+├── auth/               # JWT Authentication token validation and creation related code
+├── cache/              # Redis Cache related code
+├── configs/            # Configuration files. Base server, database, cache, etc.
+├── db/                 # Postgres database object
+├── models/             # Database models for URLs, Users and URL Redirection
+├── server/             # Separate start points for admin and redirector services
+├── urls/               # URL shortener related code for admin and redirector services
+├── users/              # User related code for admin service
+```
 
-System requirements:
-1. A Login page. User is required to provide email to login. An OTP will be sent to the email.
-2. User profile page where user can provide name.
-3. A shortened URL list page.
-4. A URL shortening side drawer where user can provide long URL and get a shortened URL. On successful shortening, the shortened URL will be copied to clipboard.
-5. On the list page, user can edit/delete the shortened URL.
+## Getting Started
+### Prerequisites
+- Go 1.24.1 or later
+- Postgres 15 or later
+- Redis 7.4 or later
+- Docker (optional, for deployment)
+- Docker Compose (optional, for deployment)
+- Make sure you have the necessary permissions to run the application and access the database.
 
-Entities:
-1. User
-   - id
-   - email
-   - name
-   - created_at
-   - updated_at
-2. User OTP (Will be deleted on successful login)
-   - user_id
-   - otp
-   - valid_until
-3. Shortened URL
-   - id
-   - user_id
-   - long_url
-   - short_url
-   - created_at
-   - updated_at
-
-Roadmap:
-1. Use config file for:
-    - Port
-    - URL shortening base URL
-2. Database implementation
-    - Postgres
-3. Cache implementation
-    - Redis
-    - In-memory
-4. Add OTP based login for user
-5. Create JWT token on successful login
-6. JWT token based authentication for all the APIs
-7. Add a frontend admin panel
-5. Add docker deployment
-6. Add unit tests
-7. Add integration tests
-8. Add logging
-9. Add metrics
+### Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/pratts/url-shortener.git
+   cd url-shortener
+   ```
+2. Install dependencies:
+   ```bash
+   go mod tidy
+   ```
+3. Set up the database:
+   - Create a Postgres database and user for the application.
+4. Set up Redis:
+   - Install Redis and start the server.
+5. Configure the application:
+   - Update the .env.example file with server, database and cache configurations
+   - Rename the file to .env or create a new .env file with the same name and copy the parameters from 
+   .env.example
+6. Run the applications on terminal:
+    - Start the admin service:
+    ```bash
+    go run server/admin/main.go
+    ```
+    - Start the redirector service:
+    ```bash
+    go run server/redirector/main.go
+    ```
+    - Alternatively, you can use Docker to run the application:
+    ```bash
+    docker-compose up --build
+    ```
+    - This will start the application and expose the admin and the redirector service on ports defined in .env file. It will start a separate postgres database on 5432 and redis server on 6379.
+7. Access the application APIs:
+   - Admin service: `http://localhost:{port}/api/v1/{users, urls}`
+   - Redirector service: `http://localhost:{redirector_port}/{short_port}`
+8. Test the application:
+   - Create a user with the email and password
+   - Login with the email and password and get the access token
+   - Use the access token to access the APIs

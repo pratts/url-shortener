@@ -10,9 +10,8 @@ import (
 func InitUserRoutes() func(router fiber.Router) {
 	return func(router fiber.Router) {
 		router.Post("/login", login)
-		// router.Post("/register", register)
+		router.Post("/register", register)
 		router.Get("/me", auth.ValidateAuthHeader, getUserInfo)
-		// router.Get("/:userId", auth.ValidateAuthHeader, getUserInfo)
 		router.Patch("/me", auth.ValidateAuthHeader, updateUserInfo)
 	}
 }

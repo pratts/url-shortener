@@ -62,8 +62,7 @@ url-shortener/
     ```
     - This will start the application and expose the admin and the redirector service on ports defined in .env file. It will start a separate postgres database on 5432 and redis server on 6379.
 7. Access the application APIs:
-   - Admin service: `http://localhost:{port}/api/v1/{users, urls}`
-   - Redirector service: `http://localhost:{redirector_port}/{short_port}`
+   - Admin service: `http(s)://${host}$:{admin_port}/api/v1/swagger/index.html`
 8. Test the application:
    - Create a user with the email and password
    - Login with the email and password and get the access token

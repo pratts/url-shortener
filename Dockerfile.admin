@@ -15,5 +15,6 @@ FROM alpine:latest
 WORKDIR /app
 
 COPY --from=builder /admin-app .
+COPY docs ./docs
 
 CMD ["./admin-app"]

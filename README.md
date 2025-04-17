@@ -67,3 +67,18 @@ url-shortener/
    - Create a user with the email and password
    - Login with the email and password and get the access token
    - Use the access token to access the APIs
+
+## API Documentation
+- The API documentation is available at `http(s)://${host}$:{admin_port}/api/v1/swagger/index.html`
+- The API documentation is generated using the command:
+```bash
+go install github.com/swaggo/swag/cmd/swag@latest
+```
+- To solve a dependency issue, run the following command:
+```bash
+go get github.com/jackc/pgx/v5/pgconn@v5.5.5
+```
+- To generate the API documentation, run the following command:
+```bash
+swag init -d server/admin,urls,users,models
+```

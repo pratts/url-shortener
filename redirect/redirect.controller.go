@@ -1,9 +1,10 @@
-package urls
+package redirect
 
 import (
 	"fmt"
 	"shortener/cache"
 	"shortener/models"
+	"shortener/urls"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -15,7 +16,7 @@ import (
 // @Produce json
 // @Param code path string true "Short URL code"
 // @Success 303 {string} string "Redirects to the original URL"
-// @Failure 404 {object} fiber.Map "URL not found"
+// @Failure 404 {object} map[string]interface{} "URL not found"
 // @Router /{code} [get]
 func RedirectUrl(ctx *fiber.Ctx) error {
 	code := ctx.Params("code")
@@ -31,7 +32,7 @@ func RedirectUrl(ctx *fiber.Ctx) error {
 		go prepareUrlEvent(code, urlEvent)
 		return ctx.Status(fiber.StatusSeeOther).Redirect(val)
 	}
-	urlDetails, err := Expand(code)
+	urlDetails, err := urls.Expand(code)
 	if err != nil {
 		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "URL not found",
@@ -52,7 +53,7 @@ func RedirectUrl(ctx *fiber.Ctx) error {
 }
 
 func prepareUrlEvent(code string, urlEvent models.UrlRedirect) {
-	urlDetails, err := GetDetailsForCode(code)
+	urlDetails, err := urls.GetDetailsForCode(code)
 	if err != nil {
 		fmt.Println("Error getting URL details:", err)
 		return
@@ -61,7 +62,7 @@ func prepareUrlEvent(code string, urlEvent models.UrlRedirect) {
 	urlEvent.ShortUrlID = urlDetails.Id
 	urlEvent.CreatedBy = urlDetails.CreatedBy
 
-	err = SaveUrlEvent(urlEvent)
+	err = urls.SaveUrlEvent(urlEvent)
 	if err != nil {
 		fmt.Println("Error saving URL event:", err)
 		return

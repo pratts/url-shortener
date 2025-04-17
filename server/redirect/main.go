@@ -6,7 +6,7 @@ import (
 	"shortener/cache"
 	"shortener/configs"
 	"shortener/db"
-	urls "shortener/urls"
+	redirect "shortener/redirect"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -22,7 +22,7 @@ func main() {
 
 	fmt.Println("Initializing URL and User services...")
 	app := fiber.New()
-	app.Get("/:code", urls.RedirectUrl)
+	app.Get("/:code", redirect.RedirectUrl)
 	app.All("*", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Endpoint not found",

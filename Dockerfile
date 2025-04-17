@@ -17,4 +17,6 @@ WORKDIR /app
 COPY --from=builder /admin-app .
 COPY docs ./docs
 
+EXPOSE 8086
+
 CMD ["./admin-app"]

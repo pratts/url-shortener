@@ -20,7 +20,7 @@ services:
   admin:
     build:
       context: .
-      dockerfile: Dockerfile.admin
+      dockerfile: Dockerfile
     ports:
       - "8086:8086"
     depends_on:

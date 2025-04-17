@@ -20,6 +20,15 @@ func InitUrlRoutes() func(router fiber.Router) {
 	}
 }
 
+// @Summary Create a short URL
+// @Description Create a short URL for a given long URL
+// @Tags URLs
+// @Accept json
+// @Produce json
+// @Param urlInput body models.UrlInput true "URL Input"
+// @Success 201 {object} models.UrlResponse
+// @Failure 400 {object} fiber.Map
+// @Router /urls [post]
 func createShortCode(ctx *fiber.Ctx) error {
 	var urlInput models.UrlInput
 	if err := ctx.BodyParser(&urlInput); err != nil {
@@ -39,6 +48,13 @@ func createShortCode(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusCreated).JSON(response)
 }
 
+// @Summary Get all URLs
+// @Description Get all short URLs created by the user
+// @Tags URLs
+// @Produce json
+// @Success 200 {array} models.UrlResponse
+// @Failure 500 {object} fiber.Map
+// @Router /urls [get]
 func getAllUrlDetails(ctx *fiber.Ctx) error {
 	user := ctx.Locals("user")
 	userId := user.(models.UserDto).Id
@@ -51,6 +67,15 @@ func getAllUrlDetails(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(urls)
 }
 
+// @Summary Get URL details
+// @Description Get details of a specific short URL by ID
+// @Tags URLs
+// @Produce json
+// @Param id path int true "URL ID"
+// @Success 200 {object} models.UrlResponse
+// @Failure 400 {object} fiber.Map
+// @Failure 404 {object} fiber.Map
+// @Router /urls/{id} [get]
 func getUrlDetails(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 	if id == "" {
@@ -77,6 +102,17 @@ func getUrlDetails(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(urlDetails)
 }
 
+// @Summary Update a URL
+// @Description Update the long URL for a given short URL ID
+// @Tags URLs
+// @Accept json
+// @Produce json
+// @Param id path int true "URL ID"
+// @Param urlInput body models.UrlInput true "URL Input"
+// @Success 200 {object} models.UrlResponse
+// @Failure 400 {object} fiber.Map
+// @Failure 404 {object} fiber.Map
+// @Router /urls/{id} [put]
 func updateUrl(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 	if id == "" {
@@ -115,6 +151,14 @@ func updateUrl(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(urlDetails)
 }
 
+// @Summary Delete a URL
+// @Description Delete a short URL by ID
+// @Tags URLs
+// @Param id path int true "URL ID"
+// @Success 204
+// @Failure 400 {object} fiber.Map
+// @Failure 404 {object} fiber.Map
+// @Router /urls/{id} [delete]
 func deleteUrl(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
 	if id == "" {

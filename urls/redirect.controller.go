@@ -8,6 +8,15 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// @Summary Redirect to the original URL
+// @Description Redirects the user to the original URL based on the short code provided
+// @Tags URL
+// @Accept json
+// @Produce json
+// @Param code path string true "Short URL code"
+// @Success 303 {string} string "Redirects to the original URL"
+// @Failure 404 {object} fiber.Map "URL not found"
+// @Router /{code} [get]
 func RedirectUrl(ctx *fiber.Ctx) error {
 	code := ctx.Params("code")
 

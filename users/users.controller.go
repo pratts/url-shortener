@@ -16,6 +16,16 @@ func InitUserRoutes() func(router fiber.Router) {
 	}
 }
 
+// @Summary Login a user
+// @Description Authenticate a user and return a JWT token
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param loginDto body models.UserLoginDto true "Login details"
+// @Success 200 {object} models.UserDto
+// @Failure 400 {object} fiber.Map
+// @Failure 401 {object} fiber.Map
+// @Router /users/login [post]
 func login(c *fiber.Ctx) error {
 	// Implement login logic here
 	loginDto := models.UserLoginDto{}
@@ -46,6 +56,16 @@ func login(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(userDto)
 }
 
+// @Summary Register a new user
+// @Description Create a new user account
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param createDto body models.UserCreateDto true "User creation details"
+// @Success 201 {object} models.UserDto
+// @Failure 400 {object} fiber.Map
+// @Failure 500 {object} fiber.Map
+// @Router /users/register [post]
 func register(c *fiber.Ctx) error {
 	// Implement registration logic here
 	createDto := models.UserCreateDto{}
@@ -69,6 +89,14 @@ func register(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(userDto)
 }
 
+// @Summary Get user info
+// @Description Retrieve information about the authenticated user
+// @Tags Users
+// @Produce json
+// @Success 200 {object} models.UserDto
+// @Failure 404 {object} fiber.Map
+// @Router /users/me [get]
+// @Security BearerAuth
 func getUserInfo(ctx *fiber.Ctx) error {
 	// Implement get user info logic here
 	user := ctx.Locals("user")
@@ -83,6 +111,17 @@ func getUserInfo(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusOK).JSON(userDto)
 }
 
+// @Summary Update user info
+// @Description Update the authenticated user's information
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param updateDto body models.UserUpdateDto true "User update details"
+// @Success 200 {object} models.UserDto
+// @Failure 400 {object} fiber.Map
+// @Failure 500 {object} fiber.Map
+// @Router /users/me [patch]
+// @Security BearerAuth
 func updateUserInfo(ctx *fiber.Ctx) error {
 	// Implement update user info logic here
 	user := ctx.Locals("user")

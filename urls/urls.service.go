@@ -43,9 +43,10 @@ func CreateShortCode(url string, userId uint64) models.UrlDto {
 
 	// Create a URL DTO to return
 	shortenedUrlDetailsDto := models.UrlDto{
-		Id:       shortenedUrlDetails.Id,
-		URL:      shortenedUrlDetails.LongURL,
-		ShortUrl: fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, shortenedUrlDetails.ShortCode),
+		Id:        shortenedUrlDetails.Id,
+		URL:       shortenedUrlDetails.LongURL,
+		ShortCode: shortenedUrlDetails.ShortCode,
+		ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, shortenedUrlDetails.ShortCode),
 	}
 	return shortenedUrlDetailsDto
 }
@@ -62,6 +63,7 @@ func GetAllShortCodes(userId uint64) ([]models.UrlDto, error) {
 		urlDtos = append(urlDtos, models.UrlDto{
 			Id:        url.Id,
 			URL:       url.LongURL,
+			ShortCode: url.ShortCode,
 			ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, url.ShortCode),
 			CreatedAt: url.CreatedAt.String(),
 		})
@@ -77,9 +79,10 @@ func GetUrlDetails(id uint64, userId uint64) (models.UrlDto, error) {
 	}
 
 	urlDto := models.UrlDto{
-		Id:       url.Id,
-		URL:      url.LongURL,
-		ShortUrl: fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, url.ShortCode),
+		Id:        url.Id,
+		URL:       url.LongURL,
+		ShortCode: url.ShortCode,
+		ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, url.ShortCode),
 	}
 	return urlDto, nil
 }
@@ -98,9 +101,10 @@ func UpdateUrl(id uint64, urlInput models.UrlInput, userId uint64) (models.UrlDt
 	}
 
 	urlDto := models.UrlDto{
-		Id:       url.Id,
-		URL:      url.LongURL,
-		ShortUrl: fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, url.ShortCode),
+		Id:        url.Id,
+		URL:       url.LongURL,
+		ShortCode: url.ShortCode,
+		ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, url.ShortCode),
 	}
 	return urlDto, nil
 }
@@ -119,13 +123,44 @@ func DeleteUrl(id uint64, userId uint64) error {
 	return nil
 }
 
-func Expand(shortened string) (string, error) {
+func Expand(shortened string) (models.UrlDto, error) {
 	data := models.ShortenedURL{}
 	url := db.DBObj.First(&data, "short_code = ?", shortened)
 	if url.Error == nil {
 		// URL found, return the original URL
-		return data.LongURL, nil
+		urlDto := models.UrlDto{
+			Id:        data.Id,
+			URL:       data.LongURL,
+			ShortCode: data.ShortCode,
+			ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, data.ShortCode),
+		}
+		return urlDto, nil
 	}
 	// Check if the shortened URL exists in the map
-	return "", fmt.Errorf("URL not found")
+	return models.UrlDto{}, fmt.Errorf("URL not found")
+}
+
+func GetDetailsForCode(code string) (models.UrlDto, error) {
+	data := models.ShortenedURL{}
+	url := db.DBObj.First(&data, "short_code = ?", code)
+	if url.Error == nil {
+		// URL found, return the original URL
+		urlDto := models.UrlDto{
+			Id:        data.Id,
+			URL:       data.LongURL,
+			ShortCode: data.ShortCode,
+			ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, data.ShortCode),
+			CreatedBy: data.CreatedBy,
+		}
+		return urlDto, nil
+	}
+	return models.UrlDto{}, fmt.Errorf("URL not found")
+}
+
+func SaveUrlEvent(urlEvent models.UrlRedirect) error {
+	db := db.DBObj.Create(&urlEvent)
+	if db.Error != nil {
+		return db.Error
+	}
+	return nil
 }

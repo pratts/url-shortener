@@ -15,6 +15,7 @@ func main() {
 	fmt.Println("Starting the application...")
 	configs.InitConfig()
 	db.InitDb()
+	db.InitUrlRedictDb()
 	cache.InitCache()
 	auth.InitTokenParams()
 	fmt.Println("Database initialized successfully")

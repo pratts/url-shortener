@@ -18,7 +18,9 @@ type UrlInput struct {
 type UrlDto struct {
 	Id        uint64 `json:"id"`
 	URL       string `json:"url"`
+	ShortCode string `json:"short_code"`
 	ShortUrl  string `json:"short_url"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
+	CreatedBy uint64 `json:"created_by"`
 }

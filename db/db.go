@@ -32,3 +32,7 @@ func InitDb() {
 	db.AutoMigrate(&models.User{})
 	DBObj = db
 }
+
+func InitUrlRedictDb() {
+	DBObj.AutoMigrate(&models.UrlRedirect{})
+}

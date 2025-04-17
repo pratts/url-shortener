@@ -1,0 +1,321 @@
+basePath: /api/v1
+definitions:
+  models.UrlDto:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      id:
+        type: integer
+      short_code:
+        type: string
+      short_url:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  models.UrlInput:
+    properties:
+      url:
+        type: string
+    type: object
+  models.UserCreateDto:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    type: object
+  models.UserDto:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      verified:
+        type: boolean
+    type: object
+  models.UserLoginDto:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  models.UserUpdateDto:
+    properties:
+      name:
+        type: string
+      password:
+        type: string
+    type: object
+host: localhost:8086
+info:
+  contact:
+    email: prateeksharma.2801@gmail.com
+    name: Prateek Sharma
+  description: This is a simple URL shortener admin API.
+  termsOfService: http://swagger.io/terms/
+  title: URL Shortener API
+  version: "1.0"
+paths:
+  /urls:
+    get:
+      description: Get all short URLs created by the user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.UrlDto'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all URLs
+      tags:
+      - URLs
+    post:
+      consumes:
+      - application/json
+      description: Create a short URL for a given long URL
+      parameters:
+      - description: URL Input
+        in: body
+        name: urlInput
+        required: true
+        schema:
+          $ref: '#/definitions/models.UrlInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.UrlDto'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create a short URL
+      tags:
+      - URLs
+  /urls/{id}:
+    delete:
+      description: Delete a short URL by ID
+      parameters:
+      - description: URL ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete a URL
+      tags:
+      - URLs
+    get:
+      description: Get details of a specific short URL by ID
+      parameters:
+      - description: URL ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UrlDto'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get URL details
+      tags:
+      - URLs
+    put:
+      consumes:
+      - application/json
+      description: Update the long URL for a given short URL ID
+      parameters:
+      - description: URL ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: URL Input
+        in: body
+        name: urlInput
+        required: true
+        schema:
+          $ref: '#/definitions/models.UrlInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UrlDto'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update a URL
+      tags:
+      - URLs
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user and return a JWT token
+      parameters:
+      - description: Login details
+        in: body
+        name: loginDto
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserLoginDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserDto'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Login a user
+      tags:
+      - Users
+  /users/me:
+    get:
+      description: Retrieve information about the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserDto'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user info
+      tags:
+      - Users
+    patch:
+      consumes:
+      - application/json
+      description: Update the authenticated user's information
+      parameters:
+      - description: User update details
+        in: body
+        name: updateDto
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserUpdateDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserDto'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user info
+      tags:
+      - Users
+  /users/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account
+      parameters:
+      - description: User creation details
+        in: body
+        name: createDto
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserCreateDto'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.UserDto'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Register a new user
+      tags:
+      - Users
+swagger: "2.0"

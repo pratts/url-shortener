@@ -1,3 +1,13 @@
+// @title           URL Shortener API
+// @version         1.0
+// @description     This is a simple URL shortener admin API.
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   Prateek Sharma
+// @contact.email  prateeksharma.2801@gmail.com
+
+// @host      localhost:8086
+// @BasePath  /api/v1
 package main
 
 import (
@@ -10,6 +20,10 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+
+	_ "shortener/docs"
+
+	"github.com/gofiber/swagger"
 )
 
 func main() {
@@ -33,6 +47,8 @@ func main() {
 	apiV1.Route("/users", users.InitUserRoutes())
 	apiV1.Route("/urls", urls.InitUrlRoutes())
 	fmt.Println("URL and User services initialized successfully")
+
+	apiV1.Get("/swagger/*", swagger.HandlerDefault) // default
 
 	app.All("*", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{

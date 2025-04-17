@@ -23,8 +23,8 @@ func InitUserRoutes() func(router fiber.Router) {
 // @Produce json
 // @Param loginDto body models.UserLoginDto true "Login details"
 // @Success 200 {object} models.UserDto
-// @Failure 400 {object} fiber.Map
-// @Failure 401 {object} fiber.Map
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
 // @Router /users/login [post]
 func login(c *fiber.Ctx) error {
 	// Implement login logic here
@@ -63,8 +63,8 @@ func login(c *fiber.Ctx) error {
 // @Produce json
 // @Param createDto body models.UserCreateDto true "User creation details"
 // @Success 201 {object} models.UserDto
-// @Failure 400 {object} fiber.Map
-// @Failure 500 {object} fiber.Map
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
 // @Router /users/register [post]
 func register(c *fiber.Ctx) error {
 	// Implement registration logic here
@@ -94,7 +94,7 @@ func register(c *fiber.Ctx) error {
 // @Tags Users
 // @Produce json
 // @Success 200 {object} models.UserDto
-// @Failure 404 {object} fiber.Map
+// @Failure 404 {object} map[string]interface{}
 // @Router /users/me [get]
 // @Security BearerAuth
 func getUserInfo(ctx *fiber.Ctx) error {
@@ -118,8 +118,8 @@ func getUserInfo(ctx *fiber.Ctx) error {
 // @Produce json
 // @Param updateDto body models.UserUpdateDto true "User update details"
 // @Success 200 {object} models.UserDto
-// @Failure 400 {object} fiber.Map
-// @Failure 500 {object} fiber.Map
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
 // @Router /users/me [patch]
 // @Security BearerAuth
 func updateUserInfo(ctx *fiber.Ctx) error {

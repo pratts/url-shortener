@@ -26,8 +26,8 @@ func InitUrlRoutes() func(router fiber.Router) {
 // @Accept json
 // @Produce json
 // @Param urlInput body models.UrlInput true "URL Input"
-// @Success 201 {object} models.UrlResponse
-// @Failure 400 {object} fiber.Map
+// @Success 201 {object} models.UrlDto
+// @Failure 400 {object} map[string]interface{}
 // @Router /urls [post]
 func createShortCode(ctx *fiber.Ctx) error {
 	var urlInput models.UrlInput
@@ -52,8 +52,8 @@ func createShortCode(ctx *fiber.Ctx) error {
 // @Description Get all short URLs created by the user
 // @Tags URLs
 // @Produce json
-// @Success 200 {array} models.UrlResponse
-// @Failure 500 {object} fiber.Map
+// @Success 200 {array} models.UrlDto
+// @Failure 500 {object} map[string]interface{}
 // @Router /urls [get]
 func getAllUrlDetails(ctx *fiber.Ctx) error {
 	user := ctx.Locals("user")
@@ -72,9 +72,9 @@ func getAllUrlDetails(ctx *fiber.Ctx) error {
 // @Tags URLs
 // @Produce json
 // @Param id path int true "URL ID"
-// @Success 200 {object} models.UrlResponse
-// @Failure 400 {object} fiber.Map
-// @Failure 404 {object} fiber.Map
+// @Success 200 {object} models.UrlDto
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
 // @Router /urls/{id} [get]
 func getUrlDetails(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
@@ -109,9 +109,9 @@ func getUrlDetails(ctx *fiber.Ctx) error {
 // @Produce json
 // @Param id path int true "URL ID"
 // @Param urlInput body models.UrlInput true "URL Input"
-// @Success 200 {object} models.UrlResponse
-// @Failure 400 {object} fiber.Map
-// @Failure 404 {object} fiber.Map
+// @Success 200 {object} models.UrlDto
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
 // @Router /urls/{id} [put]
 func updateUrl(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")
@@ -156,8 +156,8 @@ func updateUrl(ctx *fiber.Ctx) error {
 // @Tags URLs
 // @Param id path int true "URL ID"
 // @Success 204
-// @Failure 400 {object} fiber.Map
-// @Failure 404 {object} fiber.Map
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
 // @Router /urls/{id} [delete]
 func deleteUrl(ctx *fiber.Ctx) error {
 	id := ctx.Params("id")

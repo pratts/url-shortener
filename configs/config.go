@@ -30,9 +30,9 @@ func loadConfig() {
 		}
 	}
 
-	PORT := GetEnv("PORT")
-	if PORT == "" {
-		PORT = "8085"
+	REDIRECT_PORT := GetEnv("REDIRECT_PORT")
+	if REDIRECT_PORT == "" {
+		REDIRECT_PORT = "8085"
 	}
 
 	ADMIN_PORT := GetEnv("ADMIN_PORT")
@@ -56,7 +56,7 @@ func loadConfig() {
 	}
 
 	AppConfig = APP_CONFIG{
-		RedirectPort:       PORT,
+		RedirectPort:       REDIRECT_PORT,
 		ApiUrl:             API_URL,
 		JwtSigningKey:      GetEnv("JWT_SIGNING_KEY"),
 		JwtExpiryTimeHours: jwtExpiryTimeHours,

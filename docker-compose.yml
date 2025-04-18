@@ -20,7 +20,7 @@ services:
   admin:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.admin
     ports:
       - "8086:8086"
     depends_on:
@@ -28,7 +28,7 @@ services:
       - redis
     environment:
       - ENV=${ENV}
-      - PORT=8086
+      - ADMIN_PORT=8086
       - API_URL=${API_URL}
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}
@@ -57,7 +57,7 @@ services:
       - redis
     environment:
       - ENV=${ENV}
-      - PORT=8085
+      - REDIRECT_PORT=8085
       - API_URL=${API_URL}
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}

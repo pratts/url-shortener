@@ -20,7 +20,7 @@ func main() {
 	auth.InitTokenParams()
 	fmt.Println("Database initialized successfully")
 
-	fmt.Println("Initializing URL and User services...")
+	fmt.Println("Initializing URL services...")
 	app := fiber.New()
 	app.Get("/:code", redirect.RedirectUrl)
 	app.All("*", func(c *fiber.Ctx) error {

@@ -16,4 +16,6 @@ WORKDIR /app
 
 COPY --from=builder /redirect-app .
 
+EXPOSE 8085
+
 CMD ["./redirect-app"]

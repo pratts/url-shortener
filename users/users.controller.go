@@ -56,16 +56,6 @@ func login(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(userDto)
 }
 
-// @Summary Register a new user
-// @Description Create a new user account
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Param createDto body models.UserCreateDto true "User creation details"
-// @Success 201 {object} models.UserDto
-// @Failure 400 {object} map[string]interface{}
-// @Failure 500 {object} map[string]interface{}
-// @Router /users/register [post]
 func register(c *fiber.Ctx) error {
 	// Implement registration logic here
 	createDto := models.UserCreateDto{}

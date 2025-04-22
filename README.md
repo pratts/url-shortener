@@ -70,7 +70,7 @@ url-shortener/
 
 # Demo
 The application deployed on railway at https://admin.tidylnk.com/
-Demo Credentials:
+
 👤 Email: demo@snipin.dev  
 🔐 Password: demo123
 

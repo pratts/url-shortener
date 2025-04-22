@@ -68,6 +68,13 @@ url-shortener/
    - Login with the email and password and get the access token
    - Use the access token to access the APIs
 
+# Demo
+The application deployed on railway at https://admin.tidylnk.com/
+Demo Credentials:
+👤 Email: demo@snipin.dev  
+🔐 Password: demo123
+
+
 ## API Documentation
 - The API documentation is available at `http(s)://${host}$:{admin_port}/api/v1/swagger/index.html`
 - The API documentation is generated using the command:

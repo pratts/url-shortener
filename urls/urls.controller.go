@@ -1,6 +1,7 @@
 package urls
 
 import (
+	"fmt"
 	"shortener/models"
 	"strconv"
 
@@ -10,6 +11,7 @@ import (
 )
 
 func InitUrlRoutes() func(router fiber.Router) {
+	fmt.Println("Initializing URL routes")
 	return func(router fiber.Router) {
 		router.Use(auth.ValidateAuthHeader)
 		router.Post("/", createShortCode)

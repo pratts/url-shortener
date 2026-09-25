@@ -3,10 +3,11 @@ package models
 import "time"
 
 type ShortenedURL struct {
-	Id        uint64 `gorm:"primaryKey autoIncrement"`
-	CreatedBy uint64 `gorm:"index"`
-	LongURL   string
-	ShortCode string `gorm:"index"`
+	Id uint64 `gorm:"primaryKey;autoIncrement;index:idx_shortened_urls_owner_id,priority:2"`
+	// (created_by, id) serves the per-user listing ordered by id.
+	CreatedBy uint64 `gorm:"not null;index:idx_shortened_urls_owner_id,priority:1"`
+	LongURL   string `gorm:"not null"`
+	ShortCode string `gorm:"not null;uniqueIndex:uidx_shortened_urls_short_code"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

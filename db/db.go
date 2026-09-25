@@ -29,11 +29,16 @@ func InitDb() {
 		panic("failed to connect to the database")
 	}
 
-	db.AutoMigrate(&models.ShortenedURL{})
-	db.AutoMigrate(&models.User{})
+	// Fail fast: a partial migration leaves the service running against a
+	// schema it cannot use.
+	if err := db.AutoMigrate(&models.ShortenedURL{}, &models.User{}); err != nil {
+		panic(fmt.Sprintf("database migration failed: %v", err))
+	}
 	DBObj = db
 }
 
 func InitUrlRedictDb() {
-	DBObj.AutoMigrate(&models.UrlRedirect{})
+	if err := DBObj.AutoMigrate(&models.UrlRedirect{}); err != nil {
+		panic(fmt.Sprintf("database migration failed: %v", err))
+	}
 }

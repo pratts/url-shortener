@@ -14,12 +14,13 @@ var DBObj *gorm.DB
 func InitDb() {
 	dbConfig := configs.PgConfig
 	connectionString := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		dbConfig.Host,
 		dbConfig.Port,
 		dbConfig.Username,
 		dbConfig.Password,
 		dbConfig.Database,
+		dbConfig.SSLMode,
 	)
 
 	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})

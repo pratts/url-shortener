@@ -19,8 +19,8 @@ func LoadRedisConfig() {
 	}
 
 	ttl, err := strconv.Atoi(GetEnv("REDIS_TTL"))
-	if err != nil {
-		panic("Invalid REDIS_TTL value")
+	if err != nil || ttl <= 0 {
+		panic("Invalid REDIS_TTL value, must be a positive number of seconds")
 	}
 
 	db := 0

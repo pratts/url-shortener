@@ -21,14 +21,29 @@ const docTemplate = `{
     "paths": {
         "/urls": {
             "get": {
-                "description": "Get all short URLs created by the user",
+                "description": "List the user's short URLs, newest first, a page at a time. When more results exist the X-Next-Cursor response header holds the cursor for the next page; it is absent on the last page.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "URLs"
                 ],
-                "summary": "Get all URLs",
+                "summary": "List URLs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Page size, 1-100",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Value of X-Next-Cursor from the previous page",
+                        "name": "cursor",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -37,6 +52,19 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/models.UrlDto"
                             }
+                        },
+                        "headers": {
+                            "X-Next-Cursor": {
+                                "type": "string",
+                                "description": "Cursor for the next page"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "500": {
@@ -141,6 +169,13 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
                     }
                 }
             },
@@ -194,6 +229,13 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
                     }
                 }
             },
@@ -225,6 +267,13 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -312,6 +361,13 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true

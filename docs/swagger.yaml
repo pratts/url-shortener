@@ -81,22 +81,43 @@ info:
 paths:
   /urls:
     get:
-      description: Get all short URLs created by the user
+      description: List the user's short URLs, newest first, a page at a time. When
+        more results exist the X-Next-Cursor response header holds the cursor for
+        the next page; it is absent on the last page.
+      parameters:
+      - default: 50
+        description: Page size, 1-100
+        in: query
+        name: limit
+        type: integer
+      - description: Value of X-Next-Cursor from the previous page
+        in: query
+        name: cursor
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
+          headers:
+            X-Next-Cursor:
+              description: Cursor for the next page
+              type: string
           schema:
             items:
               $ref: '#/definitions/models.UrlDto'
             type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
         "500":
           description: Internal Server Error
           schema:
             additionalProperties: true
             type: object
-      summary: Get all URLs
+      summary: List URLs
       tags:
       - URLs
     post:
@@ -157,6 +178,11 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
       summary: Delete a URL
       tags:
       - URLs
@@ -182,6 +208,11 @@ paths:
             type: object
         "404":
           description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
           schema:
             additionalProperties: true
             type: object
@@ -218,6 +249,11 @@ paths:
             type: object
         "404":
           description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
           schema:
             additionalProperties: true
             type: object
@@ -274,6 +310,11 @@ paths:
             $ref: '#/definitions/models.UserDto'
         "404":
           description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
           schema:
             additionalProperties: true
             type: object

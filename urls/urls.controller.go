@@ -17,8 +17,6 @@ import (
 const (
 	defaultPageSize = 50
 	maxPageSize     = 100
-	// NextCursorHeader carries the cursor for the next page of GET /urls.
-	NextCursorHeader = "X-Next-Cursor"
 )
 
 func InitUrlRoutes() func(router fiber.Router) {
@@ -70,13 +68,12 @@ func createShortCode(ctx *fiber.Ctx) error {
 }
 
 // @Summary List URLs
-// @Description List the user's short URLs, newest first, a page at a time. When more results exist the X-Next-Cursor response header holds the cursor for the next page; it is absent on the last page.
+// @Description List the user's short URLs, newest first, a page at a time. Pass next_cursor from the previous page as cursor to get the next one; next_cursor is null on the last page.
 // @Tags URLs
 // @Produce json
 // @Param limit query int false "Page size, 1-100" default(50)
-// @Param cursor query int false "Value of X-Next-Cursor from the previous page"
-// @Success 200 {array} models.UrlDto
-// @Header 200 {string} X-Next-Cursor "Cursor for the next page"
+// @Param cursor query string false "next_cursor from the previous page"
+// @Success 200 {object} models.UrlPage
 // @Failure 400 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /urls [get]
@@ -110,10 +107,12 @@ func getAllUrlDetails(ctx *fiber.Ctx) error {
 			"error": "Failed to fetch URLs",
 		})
 	}
+	page := models.UrlPage{Items: urls}
 	if next > 0 {
-		ctx.Set(NextCursorHeader, strconv.FormatUint(next, 10))
+		cursor := strconv.FormatUint(next, 10)
+		page.NextCursor = &cursor
 	}
-	return ctx.Status(fiber.StatusOK).JSON(urls)
+	return ctx.Status(fiber.StatusOK).JSON(page)
 }
 
 var errInvalidID = errors.New("invalid URL ID")

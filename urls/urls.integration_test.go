@@ -1,8 +1,10 @@
 package urls
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http/httptest"
 	"os"
 	"shortener/cache"
@@ -10,6 +12,7 @@ import (
 	"shortener/db"
 	"shortener/models"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -190,5 +193,52 @@ func TestDatabaseErrorsAreNot404(t *testing.T) {
 		if resp.StatusCode != fiber.StatusInternalServerError {
 			t.Errorf("%s %s with DB down: got %d, want 500", p.method, p.path, resp.StatusCode)
 		}
+	}
+}
+
+func TestListEndpointPageShape(t *testing.T) {
+	setupDB(t)
+	for i := 1; i <= 5; i++ {
+		if _, err := CreateShortCode(fmt.Sprintf("https://example.com/%d", i), 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	app := testApp()
+	get := func(path string) models.UrlPage {
+		t.Helper()
+		resp, err := app.Test(httptest.NewRequest("GET", path, nil))
+		if err != nil || resp.StatusCode != fiber.StatusOK {
+			t.Fatalf("GET %s: %v, status %d", path, err, resp.StatusCode)
+		}
+		var page models.UrlPage
+		if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+			t.Fatal(err)
+		}
+		return page
+	}
+
+	var ids []uint64
+	path := "/urls?limit=2"
+	for pages := 0; ; pages++ {
+		if pages > 3 {
+			t.Fatal("pagination did not terminate")
+		}
+		page := get(path)
+		for _, u := range page.Items {
+			ids = append(ids, u.Id)
+		}
+		if page.NextCursor == nil {
+			break
+		}
+		path = "/urls?limit=2&cursor=" + *page.NextCursor
+	}
+	if fmt.Sprint(ids) != "[5 4 3 2 1]" {
+		t.Fatalf("got ids %v, want [5 4 3 2 1]", ids)
+	}
+
+	resp, _ := app.Test(httptest.NewRequest("GET", "/urls", nil))
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), `"next_cursor":null`) {
+		t.Fatalf("last page should have next_cursor null, got %s", body)
 	}
 }

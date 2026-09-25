@@ -21,7 +21,7 @@ const docTemplate = `{
     "paths": {
         "/urls": {
             "get": {
-                "description": "List the user's short URLs, newest first, a page at a time. When more results exist the X-Next-Cursor response header holds the cursor for the next page; it is absent on the last page.",
+                "description": "List the user's short URLs, newest first, a page at a time. Pass next_cursor from the previous page as cursor to get the next one; next_cursor is null on the last page.",
                 "produces": [
                     "application/json"
                 ],
@@ -38,8 +38,8 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Value of X-Next-Cursor from the previous page",
+                        "type": "string",
+                        "description": "next_cursor from the previous page",
                         "name": "cursor",
                         "in": "query"
                     }
@@ -48,16 +48,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.UrlDto"
-                            }
-                        },
-                        "headers": {
-                            "X-Next-Cursor": {
-                                "type": "string",
-                                "description": "Cursor for the next page"
-                            }
+                            "$ref": "#/definitions/models.UrlPage"
                         }
                     },
                     "400": {
@@ -528,6 +519,20 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.UrlPage": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.UrlDto"
+                    }
+                },
+                "next_cursor": {
                     "type": "string"
                 }
             }

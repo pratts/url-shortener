@@ -16,6 +16,12 @@ type UrlInput struct {
 	URL string `json:"url"`
 }
 
+// UrlPage is one page of GET /urls. NextCursor is null on the last page.
+type UrlPage struct {
+	Items      []UrlDto `json:"items"`
+	NextCursor *string  `json:"next_cursor"`
+}
+
 type UrlDto struct {
 	Id        uint64 `json:"id"`
 	URL       string `json:"url"`

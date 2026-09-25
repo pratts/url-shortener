@@ -50,6 +50,8 @@ func main() {
 		AllowOrigins:     configs.AppConfig.CORSOriginList,
 		AllowCredentials: true,
 		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
+		// Let browser clients read the pagination cursor from GET /urls.
+		ExposeHeaders: urls.NextCursorHeader,
 	}))
 
 	apiV1 := app.Group("/api/v1")

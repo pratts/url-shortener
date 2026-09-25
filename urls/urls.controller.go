@@ -1,7 +1,9 @@
 package urls
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"shortener/models"
 	"shortener/ratelimit"
 	"strconv"
@@ -10,6 +12,13 @@ import (
 	"shortener/auth"
 
 	"github.com/gofiber/fiber/v2"
+)
+
+const (
+	defaultPageSize = 50
+	maxPageSize     = 100
+	// NextCursorHeader carries the cursor for the next page of GET /urls.
+	NextCursorHeader = "X-Next-Cursor"
 )
 
 func InitUrlRoutes() func(router fiber.Router) {
@@ -60,23 +69,75 @@ func createShortCode(ctx *fiber.Ctx) error {
 	return ctx.Status(fiber.StatusCreated).JSON(response)
 }
 
-// @Summary Get all URLs
-// @Description Get all short URLs created by the user
+// @Summary List URLs
+// @Description List the user's short URLs, newest first, a page at a time. When more results exist the X-Next-Cursor response header holds the cursor for the next page; it is absent on the last page.
 // @Tags URLs
 // @Produce json
+// @Param limit query int false "Page size, 1-100" default(50)
+// @Param cursor query int false "Value of X-Next-Cursor from the previous page"
 // @Success 200 {array} models.UrlDto
+// @Header 200 {string} X-Next-Cursor "Cursor for the next page"
+// @Failure 400 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /urls [get]
 func getAllUrlDetails(ctx *fiber.Ctx) error {
+	limit := defaultPageSize
+	if v := ctx.Query("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > maxPageSize {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": fmt.Sprintf("limit must be between 1 and %d", maxPageSize),
+			})
+		}
+		limit = n
+	}
+	var cursor uint64
+	if v := ctx.Query("cursor"); v != "" {
+		n, err := strconv.ParseUint(v, 10, 64)
+		if err != nil || n == 0 {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid cursor",
+			})
+		}
+		cursor = n
+	}
+
 	user := ctx.Locals("user")
 	userId := user.(models.UserDto).Id
-	urls, err := GetAllShortCodes(userId)
+	urls, next, err := ListShortCodes(userId, limit, cursor)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch URLs",
 		})
 	}
+	if next > 0 {
+		ctx.Set(NextCursorHeader, strconv.FormatUint(next, 10))
+	}
 	return ctx.Status(fiber.StatusOK).JSON(urls)
+}
+
+var errInvalidID = errors.New("invalid URL ID")
+
+// parseID reads the :id route parameter as a positive integer.
+func parseID(ctx *fiber.Ctx) (uint64, error) {
+	id, err := strconv.ParseUint(ctx.Params("id"), 10, 64)
+	if err != nil || id == 0 {
+		return 0, errInvalidID
+	}
+	return id, nil
+}
+
+// lookupError responds 404 for a missing URL and 500 for anything else.
+func lookupError(ctx *fiber.Ctx, err error, action string) error {
+	if errors.Is(err, ErrUrlNotFound) {
+		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "URL not found",
+		})
+	}
+	log.Printf("failed to %s URL: %v", action, err)
+	return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		"error": fmt.Sprintf("Failed to %s URL", action),
+	})
 }
 
 // @Summary Get URL details
@@ -87,29 +148,21 @@ func getAllUrlDetails(ctx *fiber.Ctx) error {
 // @Success 200 {object} models.UrlDto
 // @Failure 400 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
 // @Router /urls/{id} [get]
 func getUrlDetails(ctx *fiber.Ctx) error {
-	id := ctx.Params("id")
-	if id == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Code is required",
-		})
-	}
-
-	user := ctx.Locals("user")
-	userId := user.(models.UserDto).Id
-
-	urlId, err := strconv.Atoi(id)
+	urlId, err := parseID(ctx)
 	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid URL ID",
 		})
 	}
-	urlDetails, err := GetUrlDetails(uint64(urlId), userId)
+
+	user := ctx.Locals("user")
+	userId := user.(models.UserDto).Id
+	urlDetails, err := GetUrlDetails(urlId, userId)
 	if err != nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "URL not found",
-		})
+		return lookupError(ctx, err, "fetch")
 	}
 	return ctx.Status(fiber.StatusOK).JSON(urlDetails)
 }
@@ -124,12 +177,13 @@ func getUrlDetails(ctx *fiber.Ctx) error {
 // @Success 200 {object} models.UrlDto
 // @Failure 400 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
 // @Router /urls/{id} [put]
 func updateUrl(ctx *fiber.Ctx) error {
-	id := ctx.Params("id")
-	if id == "" {
+	urlId, err := parseID(ctx)
+	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Code is required",
+			"error": "Invalid URL ID",
 		})
 	}
 
@@ -149,18 +203,9 @@ func updateUrl(ctx *fiber.Ctx) error {
 
 	user := ctx.Locals("user")
 	userId := user.(models.UserDto).Id
-
-	urlId, err := strconv.Atoi(id)
+	urlDetails, err := UpdateUrl(urlId, urlInput, userId)
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid URL ID",
-		})
-	}
-	urlDetails, err := UpdateUrl(uint64(urlId), urlInput, userId)
-	if err != nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "URL not found",
-		})
+		return lookupError(ctx, err, "update")
 	}
 	return ctx.Status(fiber.StatusOK).JSON(urlDetails)
 }
@@ -172,29 +217,20 @@ func updateUrl(ctx *fiber.Ctx) error {
 // @Success 204
 // @Failure 400 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
 // @Router /urls/{id} [delete]
 func deleteUrl(ctx *fiber.Ctx) error {
-	id := ctx.Params("id")
-	if id == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Code is required",
-		})
-	}
-
-	user := ctx.Locals("user")
-	userId := user.(models.UserDto).Id
-
-	urlId, err := strconv.Atoi(id)
+	urlId, err := parseID(ctx)
 	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid URL ID",
 		})
 	}
-	err = DeleteUrl(uint64(urlId), userId)
-	if err != nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "URL not found",
-		})
+
+	user := ctx.Locals("user")
+	userId := user.(models.UserDto).Id
+	if err := DeleteUrl(urlId, userId); err != nil {
+		return lookupError(ctx, err, "delete")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }

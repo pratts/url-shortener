@@ -22,15 +22,6 @@ definitions:
       url:
         type: string
     type: object
-  models.UserCreateDto:
-    properties:
-      email:
-        type: string
-      name:
-        type: string
-      password:
-        type: string
-    type: object
   models.UserDto:
     properties:
       email:
@@ -51,6 +42,8 @@ definitions:
     type: object
   models.UserUpdateDto:
     properties:
+      current_password:
+        type: string
       name:
         type: string
       password:
@@ -106,6 +99,16 @@ paths:
             $ref: '#/definitions/models.UrlDto'
         "400":
           description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "429":
+          description: Too Many Requests
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
           schema:
             additionalProperties: true
             type: object
@@ -230,6 +233,11 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "429":
+          description: Too Many Requests
+          schema:
+            additionalProperties: true
+            type: object
       summary: Login a user
       tags:
       - Users
@@ -258,7 +266,8 @@ paths:
       - application/json
       description: Update the authenticated user's information
       parameters:
-      - description: User update details
+      - description: User update details. current_password is required when changing
+          password
         in: body
         name: updateDto
         required: true
@@ -276,6 +285,11 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -284,38 +298,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Update user info
-      tags:
-      - Users
-  /users/register:
-    post:
-      consumes:
-      - application/json
-      description: Create a new user account
-      parameters:
-      - description: User creation details
-        in: body
-        name: createDto
-        required: true
-        schema:
-          $ref: '#/definitions/models.UserCreateDto'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/models.UserDto'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Register a new user
       tags:
       - Users
 swagger: "2.0"

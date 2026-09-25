@@ -11,15 +11,24 @@ import (
 	"shortener/db"
 	"shortener/models"
 	"strings"
+	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
-	base62     = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	codeLength = 7
-	maxUrlLen  = 2048
+	base62          = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	codeLength      = 7
+	maxUrlLen       = 2048
+	maxCodeAttempts = 5
 )
 
-var ErrInvalidTargetURL = errors.New("url must be an absolute http(s) URL of at most 2048 characters, without credentials, and not pointing to this service")
+var (
+	ErrInvalidTargetURL   = errors.New("url must be an absolute http(s) URL of at most 2048 characters, without credentials, and not pointing to this service")
+	ErrUrlNotFound        = errors.New("url not found")
+	ErrCodeSpaceExhausted = errors.New("could not generate a unique short code")
+)
 
 // generateCode returns a random base62 code from crypto/rand. Bytes >= 248
 // are rejected so every character is equally likely (248 = 4 * 62).
@@ -73,144 +82,132 @@ func invalidateCache(code string) {
 	}
 }
 
-func CreateShortCode(url string, userId uint64) (models.UrlDto, error) {
-	code, err := generateCode()
-	if err != nil {
-		return models.UrlDto{}, err
-	}
-	shortenedUrlDetails := models.ShortenedURL{
-		ShortCode: code,
-		LongURL:   url,
-		CreatedBy: userId,
-	}
+// newCode generates short codes; tests replace it to force collisions.
+var newCode = generateCode
 
-	db := db.DBObj.Create(&shortenedUrlDetails)
-	if db.Error != nil {
-		return models.UrlDto{}, db.Error
+func toDto(u models.ShortenedURL) models.UrlDto {
+	return models.UrlDto{
+		Id:        u.Id,
+		URL:       u.LongURL,
+		ShortCode: u.ShortCode,
+		ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, u.ShortCode),
+		CreatedAt: u.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt: u.UpdatedAt.UTC().Format(time.RFC3339),
+		CreatedBy: u.CreatedBy,
 	}
-
-	// Create a URL DTO to return
-	shortenedUrlDetailsDto := models.UrlDto{
-		Id:        shortenedUrlDetails.Id,
-		URL:       shortenedUrlDetails.LongURL,
-		ShortCode: shortenedUrlDetails.ShortCode,
-		ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, shortenedUrlDetails.ShortCode),
-	}
-	return shortenedUrlDetailsDto, nil
 }
 
-func GetAllShortCodes(userId uint64) ([]models.UrlDto, error) {
-	var urls []models.ShortenedURL
-	db := db.DBObj.Where("created_by = ?", userId).Find(&urls)
-	if db.Error != nil {
-		return nil, db.Error
+// notFound maps GORM's not-found error to ErrUrlNotFound and passes other
+// errors through.
+func notFound(err error) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ErrUrlNotFound
 	}
+	return err
+}
 
-	var urlDtos []models.UrlDto
-	for _, url := range urls {
-		urlDtos = append(urlDtos, models.UrlDto{
-			Id:        url.Id,
-			URL:       url.LongURL,
-			ShortCode: url.ShortCode,
-			ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, url.ShortCode),
-			CreatedAt: url.CreatedAt.String(),
-		})
+// CreateShortCode stores url under a new random code. The unique index on
+// short_code rejects collisions, in which case a new code is tried.
+func CreateShortCode(url string, userId uint64) (models.UrlDto, error) {
+	for attempt := 0; attempt < maxCodeAttempts; attempt++ {
+		code, err := newCode()
+		if err != nil {
+			return models.UrlDto{}, err
+		}
+		shortened := models.ShortenedURL{
+			ShortCode: code,
+			LongURL:   url,
+			CreatedBy: userId,
+		}
+		err = db.DBObj.Create(&shortened).Error
+		if err == nil {
+			return toDto(shortened), nil
+		}
+		if !db.IsUniqueViolation(err, "short_code") {
+			return models.UrlDto{}, err
+		}
+		log.Printf("short code collision on attempt %d, retrying", attempt+1)
 	}
-	return urlDtos, nil
+	return models.UrlDto{}, ErrCodeSpaceExhausted
+}
+
+// ListShortCodes returns up to limit of the user's URLs, newest first,
+// starting after cursor (an id; 0 means from the newest). nextCursor is 0 when
+// there are no more results.
+func ListShortCodes(userId uint64, limit int, cursor uint64) (urls []models.UrlDto, nextCursor uint64, err error) {
+	query := db.DBObj.Where("created_by = ?", userId)
+	if cursor > 0 {
+		query = query.Where("id < ?", cursor)
+	}
+	var rows []models.ShortenedURL
+	// Fetch one extra row to learn whether another page exists.
+	if err := query.Order("id DESC").Limit(limit + 1).Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	if len(rows) > limit {
+		rows = rows[:limit]
+		nextCursor = rows[limit-1].Id
+	}
+	urls = make([]models.UrlDto, 0, len(rows))
+	for _, row := range rows {
+		urls = append(urls, toDto(row))
+	}
+	return urls, nextCursor, nil
 }
 
 func GetUrlDetails(id uint64, userId uint64) (models.UrlDto, error) {
 	var url models.ShortenedURL
-	db := db.DBObj.Where("id = ? AND created_by = ?", id, userId).First(&url)
-	if db.Error != nil {
-		return models.UrlDto{}, db.Error
+	if err := db.DBObj.Where("id = ? AND created_by = ?", id, userId).First(&url).Error; err != nil {
+		return models.UrlDto{}, notFound(err)
 	}
-
-	urlDto := models.UrlDto{
-		Id:        url.Id,
-		URL:       url.LongURL,
-		ShortCode: url.ShortCode,
-		ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, url.ShortCode),
-	}
-	return urlDto, nil
+	return toDto(url), nil
 }
 
+// UpdateUrl changes the long URL in one statement, returning the updated row.
 func UpdateUrl(id uint64, urlInput models.UrlInput, userId uint64) (models.UrlDto, error) {
 	var url models.ShortenedURL
-	result := db.DBObj.Where("id = ? AND created_by = ?", id, userId).First(&url)
+	result := db.DBObj.Model(&url).Clauses(clause.Returning{}).
+		Where("id = ? AND created_by = ?", id, userId).
+		Update("long_url", urlInput.URL)
 	if result.Error != nil {
 		return models.UrlDto{}, result.Error
 	}
-
-	url.LongURL = urlInput.URL
-	result = db.DBObj.Save(&url)
-	if result.Error != nil {
-		return models.UrlDto{}, result.Error
+	if result.RowsAffected == 0 {
+		return models.UrlDto{}, ErrUrlNotFound
 	}
 	invalidateCache(url.ShortCode)
-
-	urlDto := models.UrlDto{
-		Id:        url.Id,
-		URL:       url.LongURL,
-		ShortCode: url.ShortCode,
-		ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, url.ShortCode),
-	}
-	return urlDto, nil
+	return toDto(url), nil
 }
 
+// DeleteUrl deletes in one statement, returning the row so its cache entry
+// can be removed.
 func DeleteUrl(id uint64, userId uint64) error {
 	var url models.ShortenedURL
-	result := db.DBObj.Where("id = ? AND created_by = ?", id, userId).First(&url)
+	result := db.DBObj.Clauses(clause.Returning{}).
+		Where("id = ? AND created_by = ?", id, userId).
+		Delete(&url)
 	if result.Error != nil {
 		return result.Error
 	}
-
-	result = db.DBObj.Delete(&url)
-	if result.Error != nil {
-		return result.Error
+	if result.RowsAffected == 0 {
+		return ErrUrlNotFound
 	}
 	invalidateCache(url.ShortCode)
 	return nil
 }
 
 func Expand(shortened string) (models.UrlDto, error) {
-	data := models.ShortenedURL{}
-	url := db.DBObj.First(&data, "short_code = ?", shortened)
-	if url.Error == nil {
-		// URL found, return the original URL
-		urlDto := models.UrlDto{
-			Id:        data.Id,
-			URL:       data.LongURL,
-			ShortCode: data.ShortCode,
-			ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, data.ShortCode),
-		}
-		return urlDto, nil
+	var data models.ShortenedURL
+	if err := db.DBObj.First(&data, "short_code = ?", shortened).Error; err != nil {
+		return models.UrlDto{}, notFound(err)
 	}
-	// Check if the shortened URL exists in the map
-	return models.UrlDto{}, fmt.Errorf("URL not found")
+	return toDto(data), nil
 }
 
 func GetDetailsForCode(code string) (models.UrlDto, error) {
-	data := models.ShortenedURL{}
-	url := db.DBObj.First(&data, "short_code = ?", code)
-	if url.Error == nil {
-		// URL found, return the original URL
-		urlDto := models.UrlDto{
-			Id:        data.Id,
-			URL:       data.LongURL,
-			ShortCode: data.ShortCode,
-			ShortUrl:  fmt.Sprintf("%s/%s", configs.AppConfig.ApiUrl, data.ShortCode),
-			CreatedBy: data.CreatedBy,
-		}
-		return urlDto, nil
-	}
-	return models.UrlDto{}, fmt.Errorf("URL not found")
+	return Expand(code)
 }
 
 func SaveUrlEvent(urlEvent models.UrlRedirect) error {
-	db := db.DBObj.Create(&urlEvent)
-	if db.Error != nil {
-		return db.Error
-	}
-	return nil
+	return db.DBObj.Create(&urlEvent).Error
 }

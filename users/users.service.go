@@ -4,9 +4,7 @@ import (
 	"errors"
 	"shortener/db"
 	"shortener/models"
-	"strings"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -23,6 +21,7 @@ var (
 	ErrInvalidPassword    = errors.New("password must be between 8 and 72 bytes")
 	ErrCurrentPassword    = errors.New("current password is incorrect")
 	ErrEmailTaken         = errors.New("email is already registered")
+	ErrUserNotFound       = errors.New("user not found")
 )
 
 // dummyHash is compared against when the email is unknown so that login takes
@@ -45,13 +44,6 @@ func hashPassword(password string) (string, error) {
 		return "", err
 	}
 	return string(hash), nil
-}
-
-// isUniqueViolation reports whether err is a Postgres unique-constraint
-// violation on a constraint whose name contains column.
-func isUniqueViolation(err error, column string) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23505" && strings.Contains(pgErr.ConstraintName, column)
 }
 
 func ValidateUser(email string, password string) (models.UserLoginResponseDto, error) {
@@ -79,6 +71,9 @@ func ValidateUser(email string, password string) (models.UserLoginResponseDto, e
 func GetUserById(id uint64) (models.UserDto, error) {
 	var user models.User
 	if err := db.DBObj.Where("id = ?", id).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.UserDto{}, ErrUserNotFound
+		}
 		return models.UserDto{}, err
 	}
 	return toUserDto(user), nil
@@ -113,7 +108,7 @@ func CreateUser(dto models.UserCreateDto) (models.UserDto, error) {
 	// Rely on the unique constraint rather than a pre-check, so concurrent
 	// registrations for the same email cannot both succeed.
 	if err := db.DBObj.Create(&user).Error; err != nil {
-		if isUniqueViolation(err, "email") {
+		if db.IsUniqueViolation(err, "email") {
 			return models.UserDto{}, ErrEmailTaken
 		}
 		return models.UserDto{}, err
@@ -124,7 +119,11 @@ func CreateUser(dto models.UserCreateDto) (models.UserDto, error) {
 func UpdateUser(id uint64, update models.UserUpdateDto) (models.UserDto, error) {
 	updates := map[string]interface{}{}
 	if update.Name != "" {
-		updates["name"] = update.Name
+		name, err := validateName(update.Name)
+		if err != nil {
+			return models.UserDto{}, err
+		}
+		updates["name"] = name
 	}
 	if update.Password != "" {
 		var user models.User

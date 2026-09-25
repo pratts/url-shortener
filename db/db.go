@@ -1,10 +1,13 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"shortener/configs"
 	"shortener/models"
+	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -41,4 +44,11 @@ func InitUrlRedictDb() {
 	if err := DBObj.AutoMigrate(&models.UrlRedirect{}); err != nil {
 		panic(fmt.Sprintf("database migration failed: %v", err))
 	}
+}
+
+// IsUniqueViolation reports whether err is a Postgres unique-constraint
+// violation on a constraint or index whose name contains column.
+func IsUniqueViolation(err error, column string) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && strings.Contains(pgErr.ConstraintName, column)
 }

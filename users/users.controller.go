@@ -114,6 +114,7 @@ func register(c *fiber.Ctx) error {
 // @Produce json
 // @Success 200 {object} models.UserDto
 // @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
 // @Router /users/me [get]
 // @Security BearerAuth
 func getUserInfo(ctx *fiber.Ctx) error {
@@ -122,9 +123,14 @@ func getUserInfo(ctx *fiber.Ctx) error {
 	userId := user.(models.UserDto).Id
 
 	userDto, err := GetUserById(userId)
-	if err != nil {
+	if errors.Is(err, ErrUserNotFound) {
 		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "User not found",
+		})
+	}
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch user",
 		})
 	}
 	return ctx.Status(fiber.StatusOK).JSON(userDto)
@@ -164,6 +170,13 @@ func updateUserInfo(ctx *fiber.Ctx) error {
 		})
 	}
 	user, err := UpdateUser(userId, updateDto)
+	var validationErrs ValidationErrors
+	if errors.As(err, &validationErrs) {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":  "Validation failed",
+			"fields": validationErrs,
+		})
+	}
 	if errors.Is(err, ErrCurrentPassword) {
 		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": err.Error(),

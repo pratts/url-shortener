@@ -21,20 +21,17 @@ func InitCache() {
 	})
 }
 
+// UrlKey is the cache key holding the long URL for a short code.
+func UrlKey(code string) string {
+	return "url:" + code
+}
+
 func GetFromCache(key string) (string, error) {
 	val, err := Rdb.Get(ctx, key).Result()
 	if err != nil {
 		return "", err
 	}
 	return val, nil
-}
-
-func SetToCache(key string, value string) error {
-	err := Rdb.Set(ctx, key, value, 0).Err()
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func DeleteFromCache(key string) error {

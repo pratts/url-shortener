@@ -1,15 +1,17 @@
 package users
 
 import (
+	"errors"
 	"shortener/auth"
 	"shortener/models"
+	"shortener/ratelimit"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func InitUserRoutes() func(router fiber.Router) {
 	return func(router fiber.Router) {
-		router.Post("/login", login)
+		router.Post("/login", ratelimit.LoginByIP(), ratelimit.LoginByAccount(), login)
 		// router.Post("/register", register)
 		router.Get("/me", auth.ValidateAuthHeader, getUserInfo)
 		router.Patch("/me", auth.ValidateAuthHeader, updateUserInfo)
@@ -25,6 +27,7 @@ func InitUserRoutes() func(router fiber.Router) {
 // @Success 200 {object} models.UserDto
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
+// @Failure 429 {object} map[string]interface{}
 // @Router /users/login [post]
 func login(c *fiber.Ctx) error {
 	// Implement login logic here
@@ -40,9 +43,14 @@ func login(c *fiber.Ctx) error {
 		})
 	}
 	userDto, err := ValidateUser(loginDto.Email, loginDto.Password)
-	if err != nil {
+	if errors.Is(err, ErrInvalidCredentials) {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Invalid email or password",
+		})
+	}
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to log in",
 		})
 	}
 
@@ -71,6 +79,11 @@ func register(c *fiber.Ctx) error {
 	}
 
 	userDto, err := CreateUser(createDto)
+	if errors.Is(err, ErrInvalidPassword) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create user",
@@ -106,9 +119,10 @@ func getUserInfo(ctx *fiber.Ctx) error {
 // @Tags Users
 // @Accept json
 // @Produce json
-// @Param updateDto body models.UserUpdateDto true "User update details"
+// @Param updateDto body models.UserUpdateDto true "User update details. current_password is required when changing password"
 // @Success 200 {object} models.UserDto
 // @Failure 400 {object} map[string]interface{}
+// @Failure 403 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /users/me [patch]
 // @Security BearerAuth
@@ -128,7 +142,22 @@ func updateUserInfo(ctx *fiber.Ctx) error {
 			"error": "At least one field (password or name) is required",
 		})
 	}
+	if updateDto.Password != "" && updateDto.CurrentPassword == "" {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "current_password is required to change password",
+		})
+	}
 	user, err := UpdateUser(userId, updateDto)
+	if errors.Is(err, ErrCurrentPassword) {
+		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	if errors.Is(err, ErrInvalidPassword) {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update user",

@@ -9,6 +9,7 @@ type POSTGRES_CONFIG struct {
 	Password string `json:"password"`
 	Database string `json:"database"`
 	Schema   string `json:"schema"`
+	SSLMode  string `json:"sslmode"`
 }
 
 var PgConfig POSTGRES_CONFIG
@@ -18,7 +19,15 @@ func LoadPostgresConfig() {
 	if err != nil {
 		panic("Invalid DB_PORT value")
 	}
+	sslMode := GetEnv("DB_SSLMODE")
+	if sslMode == "" {
+		sslMode = "require"
+		if !IsProduction() {
+			sslMode = "disable"
+		}
+	}
 	PgConfig = POSTGRES_CONFIG{
+		SSLMode:  sslMode,
 		Host:     GetEnv("DB_HOST"),
 		Port:     port,
 		Username: GetEnv("DB_USERNAME"),

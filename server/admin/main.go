@@ -13,6 +13,7 @@ package main
 import (
 	"fmt"
 	"shortener/auth"
+	"shortener/cache"
 	"shortener/configs"
 	"shortener/db"
 	urls "shortener/urls"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	_ "shortener/docs"
 
@@ -30,11 +32,18 @@ func main() {
 	fmt.Println("Starting the application...")
 	configs.InitConfig()
 	db.InitDb()
+	cache.InitCache()
 	auth.InitTokenParams()
 	fmt.Println("Database initialized successfully")
 
 	fmt.Println("Initializing URL and User services...")
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		ProxyHeader:             configs.AppConfig.ProxyHeader,
+		EnableTrustedProxyCheck: len(configs.AppConfig.TrustedProxies) > 0,
+		TrustedProxies:          configs.AppConfig.TrustedProxies,
+		EnableIPValidation:      true,
+	})
+	app.Use(recover.New())
 
 	app.Use(cors.New(cors.Config{
 		AllowHeaders:     "Authorization,Origin,Content-Type,Accept,Content-Length,Accept-Language,Accept-Encoding,Connection,Access-Control-Allow-Origin",
@@ -48,7 +57,9 @@ func main() {
 	apiV1.Route("/urls", urls.InitUrlRoutes())
 	fmt.Println("URL and User services initialized successfully")
 
-	apiV1.Get("/swagger/*", swagger.HandlerDefault) // default
+	if configs.AppConfig.EnableSwagger {
+		apiV1.Get("/swagger/*", swagger.HandlerDefault)
+	}
 
 	app.All("*", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{

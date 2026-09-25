@@ -1,14 +1,61 @@
 package users
 
 import (
+	"errors"
 	"shortener/db"
 	"shortener/models"
+
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
-func ValidateUser(userName string, password string) (models.UserLoginResponseDto, error) {
+const (
+	bcryptCost        = 12
+	minPasswordLength = 8
+	// bcrypt only uses the first 72 bytes of its input.
+	maxPasswordBytes = 72
+)
+
+var (
+	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrInvalidPassword    = errors.New("password must be between 8 and 72 bytes")
+	ErrCurrentPassword    = errors.New("current password is incorrect")
+)
+
+// dummyHash is compared against when the email is unknown so that login takes
+// the same time whether or not the account exists.
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("dummy-password-for-timing"), bcryptCost)
+
+func validatePassword(password string) error {
+	if len(password) < minPasswordLength || len(password) > maxPasswordBytes {
+		return ErrInvalidPassword
+	}
+	return nil
+}
+
+func hashPassword(password string) (string, error) {
+	if err := validatePassword(password); err != nil {
+		return "", err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hash), nil
+}
+
+func ValidateUser(email string, password string) (models.UserLoginResponseDto, error) {
 	var user models.User
-	if err := db.DBObj.Where("email = ? AND password = ?", userName, password).First(&user).Error; err != nil {
+	err := db.DBObj.Where("email = ?", email).First(&user).Error
+	if err != nil {
+		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.UserLoginResponseDto{}, ErrInvalidCredentials
+		}
 		return models.UserLoginResponseDto{}, err
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) != nil {
+		return models.UserLoginResponseDto{}, ErrInvalidCredentials
 	}
 
 	userDto := models.UserLoginResponseDto{
@@ -34,9 +81,13 @@ func GetUserById(id uint64) (models.UserDto, error) {
 }
 
 func CreateUser(dto models.UserCreateDto) (models.UserDto, error) {
+	hash, err := hashPassword(dto.Password)
+	if err != nil {
+		return models.UserDto{}, err
+	}
 	user := models.User{
 		Email:    dto.Email,
-		Password: dto.Password,
+		Password: hash,
 		Name:     dto.Name,
 		Verified: false,
 	}
@@ -53,7 +104,26 @@ func CreateUser(dto models.UserCreateDto) (models.UserDto, error) {
 }
 
 func UpdateUser(id uint64, update models.UserUpdateDto) (models.UserDto, error) {
-	res := db.DBObj.Model(&models.User{}).Where("id=?", id).Updates(update)
+	updates := map[string]interface{}{}
+	if update.Name != "" {
+		updates["name"] = update.Name
+	}
+	if update.Password != "" {
+		var user models.User
+		if err := db.DBObj.Where("id = ?", id).First(&user).Error; err != nil {
+			return models.UserDto{}, err
+		}
+		if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(update.CurrentPassword)) != nil {
+			return models.UserDto{}, ErrCurrentPassword
+		}
+		hash, err := hashPassword(update.Password)
+		if err != nil {
+			return models.UserDto{}, err
+		}
+		updates["password"] = hash
+	}
+
+	res := db.DBObj.Model(&models.User{}).Where("id = ?", id).Updates(updates)
 	if res.Error != nil {
 		return models.UserDto{}, res.Error
 	}

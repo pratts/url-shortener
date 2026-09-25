@@ -24,8 +24,9 @@ type UserCreateDto struct {
 }
 
 type UserUpdateDto struct {
-	Password string `json:"password"`
-	Name     string `json:"name"`
+	Password        string `json:"password"`
+	CurrentPassword string `json:"current_password"`
+	Name            string `json:"name"`
 }
 
 type UserDto struct {

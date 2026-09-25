@@ -3,7 +3,8 @@ package models
 import "time"
 
 type User struct {
-	Id        uint64 `gorm:"primaryKey autoIncrement"`
+	Id uint64 `gorm:"primaryKey autoIncrement"`
+	// Email is the login ID. It is stored lowercase so uniqueness is case-insensitive.
 	Email     string `gorm:"unique;not null;index"`
 	Password  string
 	Verified  bool

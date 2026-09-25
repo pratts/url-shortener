@@ -3,6 +3,7 @@ package users
 import (
 	"errors"
 	"shortener/auth"
+	"shortener/configs"
 	"shortener/models"
 	"shortener/ratelimit"
 
@@ -12,19 +13,21 @@ import (
 func InitUserRoutes() func(router fiber.Router) {
 	return func(router fiber.Router) {
 		router.Post("/login", ratelimit.LoginByIP(), ratelimit.LoginByAccount(), login)
-		// router.Post("/register", register)
+		if configs.AppConfig.RegistrationEnabled {
+			router.Post("/register", ratelimit.RegisterByIP(), register)
+		}
 		router.Get("/me", auth.ValidateAuthHeader, getUserInfo)
 		router.Patch("/me", auth.ValidateAuthHeader, updateUserInfo)
 	}
 }
 
 // @Summary Login a user
-// @Description Authenticate a user and return a JWT token
+// @Description Authenticate with email and password and return a JWT token. Email matching is case-insensitive.
 // @Tags Users
 // @Accept json
 // @Produce json
 // @Param loginDto body models.UserLoginDto true "Login details"
-// @Success 200 {object} models.UserDto
+// @Success 200 {object} models.UserLoginResponseDto
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 429 {object} map[string]interface{}
@@ -64,27 +67,40 @@ func login(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(userDto)
 }
 
+// @Summary Register a new user
+// @Description Create an account. The email is the login ID; it is stored lowercase and must be unique (case-insensitive). Returns 409 when the email is already registered. Limited to 5 registrations per IP per hour. Available only when REGISTRATION_ENABLED is true.
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param createDto body models.UserCreateDto true "Registration details"
+// @Success 201 {object} models.UserDto
+// @Failure 400 {object} map[string]interface{} "Invalid body, or per-field errors under \"fields\""
+// @Failure 409 {object} map[string]interface{}
+// @Failure 429 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /users/register [post]
 func register(c *fiber.Ctx) error {
-	// Implement registration logic here
 	createDto := models.UserCreateDto{}
 	if err := c.BodyParser(&createDto); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
 		})
 	}
-	if createDto.Email == "" || createDto.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Email and password are required",
-		})
-	}
 
 	userDto, err := CreateUser(createDto)
-	if errors.Is(err, ErrInvalidPassword) {
+	var validationErrs ValidationErrors
+	switch {
+	case errors.As(err, &validationErrs):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
+			"error":  "Validation failed",
+			"fields": validationErrs,
 		})
-	}
-	if err != nil {
+	case errors.Is(err, ErrEmailTaken):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"error":  err.Error(),
+			"fields": fiber.Map{"email": "is already registered"},
+		})
+	case err != nil:
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create user",
 		})

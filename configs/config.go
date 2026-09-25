@@ -16,6 +16,8 @@ type APP_CONFIG struct {
 	JwtExpiryTimeHours int
 	CORSOriginList     string
 	EnableSwagger      bool
+	// RegistrationEnabled exposes POST /users/register.
+	RegistrationEnabled bool
 	// ProxyHeader is the header holding the client IP (e.g. X-Forwarded-For)
 	// when running behind a reverse proxy. Empty means use the socket address.
 	ProxyHeader    string
@@ -75,6 +77,14 @@ func loadConfig() {
 		enableSwagger, _ = strconv.ParseBool(v)
 	}
 
+	registrationEnabled := true
+	if v := GetEnv("REGISTRATION_ENABLED"); v != "" {
+		registrationEnabled, err = strconv.ParseBool(v)
+		if err != nil {
+			panic("Invalid REGISTRATION_ENABLED value, must be true or false")
+		}
+	}
+
 	proxyHeader := GetEnv("PROXY_HEADER")
 	trustedProxies := splitList(GetEnv("TRUSTED_PROXIES"))
 	if proxyHeader != "" && len(trustedProxies) == 0 {
@@ -87,15 +97,16 @@ func loadConfig() {
 	}
 
 	AppConfig = APP_CONFIG{
-		RedirectPort:       REDIRECT_PORT,
-		ApiUrl:             API_URL,
-		JwtSigningKey:      GetEnv("JWT_SIGNING_KEY"),
-		JwtExpiryTimeHours: jwtExpiryTimeHours,
-		AdminPort:          ADMIN_PORT,
-		CORSOriginList:     corsOriginList,
-		EnableSwagger:      enableSwagger,
-		ProxyHeader:        proxyHeader,
-		TrustedProxies:     trustedProxies,
+		RedirectPort:        REDIRECT_PORT,
+		ApiUrl:              API_URL,
+		JwtSigningKey:       GetEnv("JWT_SIGNING_KEY"),
+		JwtExpiryTimeHours:  jwtExpiryTimeHours,
+		AdminPort:           ADMIN_PORT,
+		CORSOriginList:      corsOriginList,
+		EnableSwagger:       enableSwagger,
+		RegistrationEnabled: registrationEnabled,
+		ProxyHeader:         proxyHeader,
+		TrustedProxies:      trustedProxies,
 	}
 }
 

@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"shortener/auth"
 	"shortener/cache"
 	"shortener/configs"
 	"shortener/db"
+	"shortener/ratelimit"
 	redirect "shortener/redirect"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 )
 
 func main() {
@@ -17,12 +18,17 @@ func main() {
 	db.InitDb()
 	db.InitUrlRedictDb()
 	cache.InitCache()
-	auth.InitTokenParams()
 	fmt.Println("Database initialized successfully")
 
 	fmt.Println("Initializing URL services...")
-	app := fiber.New()
-	app.Get("/:code", redirect.RedirectUrl)
+	app := fiber.New(fiber.Config{
+		ProxyHeader:             configs.AppConfig.ProxyHeader,
+		EnableTrustedProxyCheck: len(configs.AppConfig.TrustedProxies) > 0,
+		TrustedProxies:          configs.AppConfig.TrustedProxies,
+		EnableIPValidation:      true,
+	})
+	app.Use(recover.New())
+	app.Get("/:code", ratelimit.RedirectByIP(), redirect.RedirectUrl)
 	app.All("*", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Endpoint not found",

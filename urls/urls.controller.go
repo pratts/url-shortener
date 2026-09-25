@@ -3,7 +3,9 @@ package urls
 import (
 	"fmt"
 	"shortener/models"
+	"shortener/ratelimit"
 	"strconv"
+	"time"
 
 	"shortener/auth"
 
@@ -14,7 +16,7 @@ func InitUrlRoutes() func(router fiber.Router) {
 	fmt.Println("Initializing URL routes")
 	return func(router fiber.Router) {
 		router.Use(auth.ValidateAuthHeader)
-		router.Post("/", createShortCode)
+		router.Post("/", ratelimit.PerUser("create-url", 30, time.Minute), createShortCode)
 		router.Get("/", getAllUrlDetails)
 		router.Get("/:id", getUrlDetails)
 		router.Put("/:id", updateUrl)
@@ -30,6 +32,8 @@ func InitUrlRoutes() func(router fiber.Router) {
 // @Param urlInput body models.UrlInput true "URL Input"
 // @Success 201 {object} models.UrlDto
 // @Failure 400 {object} map[string]interface{}
+// @Failure 429 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
 // @Router /urls [post]
 func createShortCode(ctx *fiber.Ctx) error {
 	var urlInput models.UrlInput
@@ -38,15 +42,21 @@ func createShortCode(ctx *fiber.Ctx) error {
 			"error": "Invalid request body",
 		})
 	}
-	if urlInput.URL == "" {
+	target, err := ValidateTargetURL(urlInput.URL)
+	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "URL is required",
+			"error": err.Error(),
 		})
 	}
 
 	user := ctx.Locals("user")
 	userId := user.(models.UserDto).Id
-	response := CreateShortCode(urlInput.URL, userId)
+	response, err := CreateShortCode(target, userId)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to create short URL",
+		})
+	}
 	return ctx.Status(fiber.StatusCreated).JSON(response)
 }
 
@@ -129,11 +139,13 @@ func updateUrl(ctx *fiber.Ctx) error {
 			"error": "Invalid request body",
 		})
 	}
-	if urlInput.URL == "" {
+	target, err := ValidateTargetURL(urlInput.URL)
+	if err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "URL is required",
+			"error": err.Error(),
 		})
 	}
+	urlInput.URL = target
 
 	user := ctx.Locals("user")
 	userId := user.(models.UserDto).Id

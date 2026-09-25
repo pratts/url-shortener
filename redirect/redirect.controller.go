@@ -3,6 +3,7 @@ package redirect
 import (
 	"fmt"
 	"shortener/cache"
+	"shortener/configs"
 	"shortener/models"
 	"shortener/urls"
 
@@ -21,7 +22,7 @@ import (
 func RedirectUrl(ctx *fiber.Ctx) error {
 	code := ctx.Params("code")
 
-	val, err := cache.GetFromCache(code)
+	val, err := cache.GetFromCache(cache.UrlKey(code))
 	if err == nil && val != "" {
 		urlEvent := models.UrlRedirect{
 			ShortCode: code,
@@ -38,8 +39,14 @@ func RedirectUrl(ctx *fiber.Ctx) error {
 			"error": "URL not found",
 		})
 	}
+	// Never redirect to a target that fails validation, even if it is already stored.
+	if _, err := urls.ValidateTargetURL(urlDetails.URL); err != nil {
+		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "URL not found",
+		})
+	}
 
-	if err := cache.SetToCache(code, urlDetails.URL); err != nil {
+	if err := cache.CacheSetWithExpiration(cache.UrlKey(code), urlDetails.URL, configs.RedisConfig.TTL); err != nil {
 		fmt.Println("Error setting cache:", err)
 	}
 	urlEvent := models.UrlRedirect{

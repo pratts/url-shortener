@@ -20,6 +20,17 @@ func (v ValidationErrors) Error() string {
 	return "validation failed"
 }
 
+const nameRule = "must be 1-100 characters"
+
+// validateName trims name and checks its length in characters.
+func validateName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if n := utf8.RuneCountInString(name); n < 1 || n > maxNameLength {
+		return name, ValidationErrors{"name": nameRule}
+	}
+	return name, nil
+}
+
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
@@ -38,8 +49,8 @@ func NormalizeRegistration(dto models.UserCreateDto) (models.UserCreateDto, erro
 		errs["email"] = "must be a valid email address"
 	}
 
-	if n := utf8.RuneCountInString(dto.Name); n < 1 || n > maxNameLength {
-		errs["name"] = "must be 1-100 characters"
+	if _, err := validateName(dto.Name); err != nil {
+		errs["name"] = nameRule
 	}
 
 	if err := validatePassword(dto.Password); err != nil {

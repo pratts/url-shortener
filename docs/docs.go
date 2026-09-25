@@ -235,7 +235,7 @@ const docTemplate = `{
         },
         "/users/login": {
             "post": {
-                "description": "Authenticate a user and return a JWT token",
+                "description": "Authenticate with email and password and return a JWT token. Email matching is case-insensitive.",
                 "consumes": [
                     "application/json"
                 ],
@@ -261,7 +261,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.UserDto"
+                            "$ref": "#/definitions/models.UserLoginResponseDto"
                         }
                     },
                     "400": {
@@ -377,6 +377,68 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/users/register": {
+            "post": {
+                "description": "Create an account. The email is the login ID; it is stored lowercase and must be unique (case-insensitive). Returns 409 when the email is already registered. Limited to 5 registrations per IP per hour. Available only when REGISTRATION_ENABLED is true.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Register a new user",
+                "parameters": [
+                    {
+                        "description": "Registration details",
+                        "name": "createDto",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UserCreateDto"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.UserDto"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid body, or per-field errors under \\\"fields\\",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -414,6 +476,20 @@ const docTemplate = `{
                 }
             }
         },
+        "models.UserCreateDto": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
         "models.UserDto": {
             "type": "object",
             "properties": {
@@ -438,6 +514,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.UserLoginResponseDto": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "token": {
                     "type": "string"
                 }
             }

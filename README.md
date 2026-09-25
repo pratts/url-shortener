@@ -64,9 +64,17 @@ url-shortener/
 7. Access the application APIs:
    - Admin service: `http(s)://${host}$:{admin_port}/api/v1/swagger/index.html`
 8. Test the application:
-   - Create a user with the email and password
-   - Login with the email and password and get the access token
-   - Use the access token to access the APIs
+   - Register a user with `POST /api/v1/users/register`:
+     ```json
+     { "email": "alice@example.com", "name": "Alice", "password": "at-least-8-chars" }
+     ```
+     The email is the login ID. It must be unique and is stored lowercase, so matching is case-insensitive.
+   - Log in with `POST /api/v1/users/login` using `{"email": "...", "password": "..."}` and get the access token
+   - Send the token as `Authorization: Bearer <token>` to access the APIs
+   - If registration is disabled (`REGISTRATION_ENABLED=false`), create users with the seed command instead:
+     ```bash
+     SEED_PASSWORD='at-least-8-chars' go run ./server/seed -email alice@example.com -name Alice
+     ```
 
 
 ## API Documentation

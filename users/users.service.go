@@ -4,7 +4,9 @@ import (
 	"errors"
 	"shortener/db"
 	"shortener/models"
+	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -20,6 +22,7 @@ var (
 	ErrInvalidCredentials = errors.New("invalid email or password")
 	ErrInvalidPassword    = errors.New("password must be between 8 and 72 bytes")
 	ErrCurrentPassword    = errors.New("current password is incorrect")
+	ErrEmailTaken         = errors.New("email is already registered")
 )
 
 // dummyHash is compared against when the email is unknown so that login takes
@@ -44,9 +47,16 @@ func hashPassword(password string) (string, error) {
 	return string(hash), nil
 }
 
+// isUniqueViolation reports whether err is a Postgres unique-constraint
+// violation on a constraint whose name contains column.
+func isUniqueViolation(err error, column string) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && strings.Contains(pgErr.ConstraintName, column)
+}
+
 func ValidateUser(email string, password string) (models.UserLoginResponseDto, error) {
 	var user models.User
-	err := db.DBObj.Where("email = ?", email).First(&user).Error
+	err := db.DBObj.Where("email = ?", normalizeEmail(email)).First(&user).Error
 	if err != nil {
 		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -71,16 +81,25 @@ func GetUserById(id uint64) (models.UserDto, error) {
 	if err := db.DBObj.Where("id = ?", id).First(&user).Error; err != nil {
 		return models.UserDto{}, err
 	}
-	userDto := models.UserDto{
+	return toUserDto(user), nil
+}
+
+func toUserDto(user models.User) models.UserDto {
+	return models.UserDto{
 		Id:       user.Id,
 		Email:    user.Email,
 		Verified: user.Verified,
 		Name:     user.Name,
 	}
-	return userDto, nil
 }
 
+// CreateUser validates and normalizes dto, then stores the user with a hashed
+// password. It returns ValidationErrors or ErrEmailTaken for bad input.
 func CreateUser(dto models.UserCreateDto) (models.UserDto, error) {
+	dto, err := NormalizeRegistration(dto)
+	if err != nil {
+		return models.UserDto{}, err
+	}
 	hash, err := hashPassword(dto.Password)
 	if err != nil {
 		return models.UserDto{}, err
@@ -91,16 +110,15 @@ func CreateUser(dto models.UserCreateDto) (models.UserDto, error) {
 		Name:     dto.Name,
 		Verified: false,
 	}
+	// Rely on the unique constraint rather than a pre-check, so concurrent
+	// registrations for the same email cannot both succeed.
 	if err := db.DBObj.Create(&user).Error; err != nil {
+		if isUniqueViolation(err, "email") {
+			return models.UserDto{}, ErrEmailTaken
+		}
 		return models.UserDto{}, err
 	}
-	userDto := models.UserDto{
-		Id:       user.Id,
-		Email:    user.Email,
-		Verified: user.Verified,
-		Name:     user.Name,
-	}
-	return userDto, nil
+	return toUserDto(user), nil
 }
 
 func UpdateUser(id uint64, update models.UserUpdateDto) (models.UserDto, error) {

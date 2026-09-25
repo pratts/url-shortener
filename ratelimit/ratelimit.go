@@ -48,6 +48,20 @@ func LoginByAccount() fiber.Handler {
 	})
 }
 
+// RegisterByIP caps account registrations from one client IP.
+func RegisterByIP() fiber.Handler {
+	return limiter.New(limiter.Config{
+		Max:        5,
+		Expiration: time.Hour,
+		KeyGenerator: func(ctx *fiber.Ctx) string {
+			return "register:ip:" + ctx.IP()
+		},
+		LimitReached:      limitReached,
+		Storage:           cache.NewLimiterStorage("rl:"),
+		LimiterMiddleware: limiter.SlidingWindow{},
+	})
+}
+
 // PerUser caps requests per authenticated user. It must run after
 // auth.ValidateAuthHeader.
 func PerUser(name string, max int, window time.Duration) fiber.Handler {

@@ -22,6 +22,15 @@ definitions:
       url:
         type: string
     type: object
+  models.UserCreateDto:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    type: object
   models.UserDto:
     properties:
       email:
@@ -38,6 +47,17 @@ definitions:
       email:
         type: string
       password:
+        type: string
+    type: object
+  models.UserLoginResponseDto:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      token:
         type: string
     type: object
   models.UserUpdateDto:
@@ -208,7 +228,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Authenticate a user and return a JWT token
+      description: Authenticate with email and password and return a JWT token. Email
+        matching is case-insensitive.
       parameters:
       - description: Login details
         in: body
@@ -222,7 +243,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.UserDto'
+            $ref: '#/definitions/models.UserLoginResponseDto'
         "400":
           description: Bad Request
           schema:
@@ -298,6 +319,51 @@ paths:
       security:
       - BearerAuth: []
       summary: Update user info
+      tags:
+      - Users
+  /users/register:
+    post:
+      consumes:
+      - application/json
+      description: Create an account. The email is the login ID; it is stored lowercase
+        and must be unique (case-insensitive). Returns 409 when the email is already
+        registered. Limited to 5 registrations per IP per hour. Available only when
+        REGISTRATION_ENABLED is true.
+      parameters:
+      - description: Registration details
+        in: body
+        name: createDto
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserCreateDto'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.UserDto'
+        "400":
+          description: Invalid body, or per-field errors under \"fields\
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties: true
+            type: object
+        "429":
+          description: Too Many Requests
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Register a new user
       tags:
       - Users
 swagger: "2.0"

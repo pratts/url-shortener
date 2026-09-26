@@ -1,4 +1,13 @@
-version: '3.9'
+# Local stack: Postgres, Redis, a one-off migration, then both services.
+# Settings come from .env (copy .env.example); hosts are overridden below to
+# reach the containers.
+x-app-env: &app-env
+  env_file: .env
+  environment:
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
 
 services:
   postgres:
@@ -12,67 +21,61 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
 
   redis:
     image: redis:7.4
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}"]
     ports:
       - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep -q PONG"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  # Applies database migrations and exits; the services wait for it.
+  migrate:
+    <<: *app-env
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    command: ["./migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   admin:
+    <<: *app-env
     build:
       context: .
       dockerfile: Dockerfile.admin
     ports:
       - "8086:8086"
     depends_on:
-      - postgres
-      - redis
-    environment:
-      - ENV=${ENV}
-      - ADMIN_PORT=8086
-      - API_URL=${API_URL}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_DATABASE=${DB_DATABASE}
-      - DB_SCHEMA=${DB_SCHEMA}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - REDIS_TTL=${REDIS_TTL}
-      - JWT_SIGNING_KEY=${JWT_SIGNING_KEY}
-      - JWT_EXPIRY_TIME_HOURS=${JWT_EXPIRY_TIME_HOURS}
-      - CORS_ORIGINS=${CORS_ORIGINS}
-    env_file:
-      - .env
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   redirect:
+    <<: *app-env
     build:
       context: .
       dockerfile: Dockerfile.redirect
     ports:
       - "8085:8085"
     depends_on:
-      - postgres
-      - redis
-    environment:
-      - ENV=${ENV}
-      - REDIRECT_PORT=8085
-      - API_URL=${API_URL}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_DATABASE=${DB_DATABASE}
-      - DB_SCHEMA=${DB_SCHEMA}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - REDIS_TTL=${REDIS_TTL}
-    env_file:
-      - .env
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
 volumes:
   pg_data:

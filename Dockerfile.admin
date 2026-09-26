@@ -6,17 +6,17 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+RUN go build -o /out/admin ./cmd/admin \
+ && go build -o /out/migrate ./cmd/migrate \
+ && go build -o /out/seed ./cmd/seed
 
-WORKDIR /app/server/admin
-RUN go build -o /admin-app main.go
-
-# Run stage
+# Run stage. The image also carries migrate and seed so the same image can run
+# migrations before the service starts and create users when registration is off.
 FROM alpine:latest
 WORKDIR /app
 
-COPY --from=builder /admin-app .
-COPY docs ./docs
+COPY --from=builder /out/ ./
 
 EXPOSE 8086
 
-CMD ["./admin-app"]
+CMD ["./admin"]

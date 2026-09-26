@@ -74,6 +74,22 @@ Run `migrate` as a release step before starting new versions of the services.
 Services only need read/write access to the tables, so they can use a
 database role without DDL rights; only `migrate` needs to alter the schema.
 
+Operations:
+- **Health:** both services serve `GET /healthz` (process is up) and
+  `GET /readyz` (Postgres and Redis answer within a second; 503 otherwise).
+- **Shutdown:** on SIGTERM or SIGINT the services stop accepting requests, finish
+  in-flight ones, write any queued clicks, then close connections (up to 15s).
+- **Logs:** structured, one JSON object per line in production
+  (`LOG_FORMAT`), with an access-log entry and `X-Request-Id` for every request.
+- **Redis:** set `maxmemory` and `maxmemory-policy volatile-lru`. Every key the
+  app writes has a TTL; the services log a warning at startup if Redis has no
+  memory limit.
+- **Postgres:** each process opens at most `DB_MAX_OPEN_CONNS` connections.
+
+Clicks are written in batches off the request path. If the database falls
+behind and the in-memory queue (10,000 clicks) fills, further clicks are
+dropped and counted in the logs rather than slowing redirects.
+
 ### Try it
 - Register with `POST /api/v1/users/register`:
   ```json

@@ -50,8 +50,8 @@ func TestSchemaMatchesModels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rec := analytics.NewRecorder(db)
-	if err := rec.Record(ctx, analytics.Click{ShortURLID: linkID, ShortCode: "CLICK01", CreatedBy: owner, Agent: "test", IPAddress: "127.0.0.1"}); err != nil {
+	store := analytics.NewGormStore(db)
+	if err := store.Insert(ctx, []analytics.Click{{ShortURLID: linkID, ShortCode: "CLICK01", CreatedBy: owner, Agent: "test", IPAddress: "127.0.0.1"}}); err != nil {
 		t.Fatalf("recording a click: %v", err)
 	}
 	var metadata string

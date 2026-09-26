@@ -97,8 +97,8 @@ func TestCreateRetriesOnCollision(t *testing.T) {
 	if err != nil || second.ShortCode != "FRESH01" || *calls != 4 {
 		t.Fatalf("second create: %+v, %v after %d codes; want FRESH01 after 4", second, err, *calls)
 	}
-	if target, _ := svc.Resolve(ctx, "SAME001"); target != "https://example.com/1" {
-		t.Fatalf("original link changed to %q", target)
+	if e, _ := svc.Resolve(ctx, "SAME001"); e.Target != "https://example.com/1" {
+		t.Fatalf("original link changed to %q", e.Target)
 	}
 }
 
@@ -194,8 +194,8 @@ func TestUpdateAndDeleteInvalidateCache(t *testing.T) {
 	ctx := context.Background()
 	created, _ := svc.Create(ctx, 1, "https://example.com/old")
 
-	if target, _ := svc.Resolve(ctx, created.ShortCode); target != "https://example.com/old" {
-		t.Fatalf("resolve: %q", target)
+	if e, _ := svc.Resolve(ctx, created.ShortCode); e.Target != "https://example.com/old" || e.LinkID != created.ID || e.Owner != 1 {
+		t.Fatalf("resolve: %+v", e)
 	}
 	if _, ok, _ := cache.Get(ctx, created.ShortCode); !ok {
 		t.Fatal("resolve did not populate the cache")
@@ -211,8 +211,8 @@ func TestUpdateAndDeleteInvalidateCache(t *testing.T) {
 	if _, ok, _ := cache.Get(ctx, created.ShortCode); ok {
 		t.Fatal("update did not invalidate the cache")
 	}
-	if target, _ := svc.Resolve(ctx, created.ShortCode); target != "https://example.com/new" {
-		t.Fatalf("resolve after update: %q", target)
+	if e, _ := svc.Resolve(ctx, created.ShortCode); e.Target != "https://example.com/new" {
+		t.Fatalf("resolve after update: %+v", e)
 	}
 
 	if err := svc.Delete(ctx, created.ID, 2); !errors.Is(err, ErrNotFound) {
@@ -236,8 +236,8 @@ func TestResolveRefusesUnsafeStoredTarget(t *testing.T) {
 	if _, err := svc.Resolve(ctx, "EVIL001"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("got %v, want ErrNotFound", err)
 	}
-	if _, ok, _ := cache.Get(ctx, "EVIL001"); ok {
-		t.Fatal("unsafe target was cached")
+	if e, _, _ := cache.Get(ctx, "EVIL001"); !e.Missing || e.Target != "" {
+		t.Fatalf("an unsafe target should be cached only as a miss, got %+v", e)
 	}
 }
 
@@ -254,4 +254,90 @@ func mustParse(t *testing.T, s string) uint64 {
 		t.Fatalf("cursor %q is not numeric", s)
 	}
 	return n
+}
+
+// countingRepo counts ByCode calls, to show which lookups reach the database.
+type countingRepo struct {
+	*MemoryRepository
+	byCode int
+}
+
+func (r *countingRepo) ByCode(ctx context.Context, code string) (Link, error) {
+	r.byCode++
+	return r.MemoryRepository.ByCode(ctx, code)
+}
+
+func TestValidCode(t *testing.T) {
+	for _, c := range []string{"abc1234", "ABCDEFG", "0000000"} {
+		if !ValidCode(c) {
+			t.Errorf("%q should be valid", c)
+		}
+	}
+	for _, c := range []string{"", "abc123", "abc12345", "abc-123", "abc 123", "favicon.ico", "abcdéf1", "healthz"} {
+		if ValidCode(c) {
+			t.Errorf("%q should be invalid", c)
+		}
+	}
+}
+
+func TestResolveUsesCacheAndSkipsInvalidCodes(t *testing.T) {
+	repo := &countingRepo{MemoryRepository: NewMemoryRepository()}
+	svc, err := NewService(repo, NewMemoryCache(), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	created, _ := svc.Create(ctx, 1, "https://example.com")
+
+	for _, bad := range []string{"favicon.ico", "x", "healthz"} {
+		if _, err := svc.Resolve(ctx, bad); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("%q: got %v", bad, err)
+		}
+	}
+	if repo.byCode != 0 {
+		t.Fatalf("invalid codes reached the database %d times", repo.byCode)
+	}
+
+	for i := 0; i < 3; i++ {
+		if e, err := svc.Resolve(ctx, created.ShortCode); err != nil || e.Owner != 1 {
+			t.Fatalf("resolve: %+v, %v", e, err)
+		}
+	}
+	if repo.byCode != 1 {
+		t.Fatalf("3 resolves hit the database %d times, want 1", repo.byCode)
+	}
+}
+
+func TestMissesAreCachedAndClearedOnCreate(t *testing.T) {
+	repo := &countingRepo{MemoryRepository: NewMemoryRepository()}
+	svc, err := NewService(repo, NewMemoryCache(), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	for i := 0; i < 3; i++ {
+		if _, err := svc.Resolve(ctx, "LATER01"); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("unknown code: %v", err)
+		}
+	}
+	if repo.byCode != 1 {
+		t.Fatalf("3 misses hit the database %d times, want 1", repo.byCode)
+	}
+
+	svc.newCode = func() (string, error) { return "LATER01", nil }
+	if _, err := svc.Create(ctx, 1, "https://example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if e, err := svc.Resolve(ctx, "LATER01"); err != nil || e.Target != "https://example.com" {
+		t.Fatalf("new link still hidden by the cached miss: %+v, %v", e, err)
+	}
+}
+
+func TestGenerateCodeNeverReturnsReserved(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		code, _ := GenerateCode()
+		if !ValidCode(code) {
+			t.Fatalf("generated code %q is not valid", code)
+		}
+	}
 }

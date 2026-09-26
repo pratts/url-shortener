@@ -13,7 +13,9 @@
 package main
 
 import (
-	"log"
+	"context"
+	"log/slog"
+	"os"
 
 	_ "shortener/docs"
 	"shortener/internal/auth"
@@ -33,19 +35,25 @@ import (
 func main() {
 	cfg, err := config.LoadAdmin()
 	if err != nil {
-		log.Fatal(err)
+		fatal(slog.Default(), err)
 	}
+	log := platform.NewLogger(cfg.HTTP.LogFormat, os.Stderr).With("service", "admin")
+	slog.SetDefault(log)
+
 	db, err := platform.OpenPostgresCurrent(cfg.Postgres)
 	if err != nil {
-		log.Fatal(err)
+		fatal(log, err)
 	}
+	sqlDB, _ := db.DB()
 	rdb, err := platform.OpenRedis(cfg.Redis)
 	if err != nil {
-		log.Fatal(err)
+		fatal(log, err)
 	}
+	platform.WarnOnUnboundedRedis(context.Background(), rdb, log)
+
 	tokens, err := auth.NewTokenService(cfg.JWTSigningKey, cfg.JWTTTL)
 	if err != nil {
-		log.Fatal(err)
+		fatal(log, err)
 	}
 	links, err := shortlink.NewService(
 		shortlink.NewGormRepository(db),
@@ -53,7 +61,7 @@ func main() {
 		cfg.ShortURLBase,
 	)
 	if err != nil {
-		log.Fatal(err)
+		fatal(log, err)
 	}
 
 	handler := &admin.Handler{
@@ -64,7 +72,11 @@ func main() {
 		RegistrationEnabled: cfg.RegistrationEnabled,
 	}
 
-	app := httpapi.NewApp(cfg.HTTP)
+	app := httpapi.NewApp(cfg.HTTP, log)
+	httpapi.RegisterHealth(app, map[string]httpapi.Check{
+		"postgres": sqlDB.PingContext,
+		"redis":    func(ctx context.Context) error { return rdb.Ping(ctx).Err() },
+	})
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.CORSOrigins,
 		AllowCredentials: true,
@@ -78,6 +90,16 @@ func main() {
 	}
 	app.Use(httpapi.NotFound)
 
-	log.Printf("admin API listening on :%s", cfg.HTTP.Port)
-	log.Fatal(app.Listen(":" + cfg.HTTP.Port))
+	err = httpapi.Serve(app, cfg.HTTP.Port, log,
+		func(context.Context) error { return rdb.Close() },
+		func(context.Context) error { return sqlDB.Close() },
+	)
+	if err != nil {
+		fatal(log, err)
+	}
+}
+
+func fatal(log *slog.Logger, err error) {
+	log.Error("admin API failed", "err", err)
+	os.Exit(1)
 }

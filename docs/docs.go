@@ -9,7 +9,6 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "http://swagger.io/terms/",
         "contact": {
             "name": "Prateek Sharma",
             "email": "prateeksharma.2801@gmail.com"
@@ -21,6 +20,11 @@ const docTemplate = `{
     "paths": {
         "/urls": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "List the user's short URLs, newest first, a page at a time. Pass next_cursor from the previous page as cursor to get the next one; next_cursor is null on the last page.",
                 "produces": [
                     "application/json"
@@ -48,11 +52,18 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.UrlPage"
+                            "$ref": "#/definitions/shortlink.Page"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -68,7 +79,11 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Create a short URL for a given long URL",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -81,12 +96,12 @@ const docTemplate = `{
                 "summary": "Create a short URL",
                 "parameters": [
                     {
-                        "description": "URL Input",
-                        "name": "urlInput",
+                        "description": "Target URL",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UrlInput"
+                            "$ref": "#/definitions/shortlink.Input"
                         }
                     }
                 ],
@@ -94,11 +109,18 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.UrlDto"
+                            "$ref": "#/definitions/shortlink.View"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -123,14 +145,18 @@ const docTemplate = `{
         },
         "/urls/{id}": {
             "get": {
-                "description": "Get details of a specific short URL by ID",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "URLs"
                 ],
-                "summary": "Get URL details",
+                "summary": "Get a URL",
                 "parameters": [
                     {
                         "type": "integer",
@@ -144,11 +170,18 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.UrlDto"
+                            "$ref": "#/definitions/shortlink.View"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -171,7 +204,11 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Update the long URL for a given short URL ID",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -181,7 +218,7 @@ const docTemplate = `{
                 "tags": [
                     "URLs"
                 ],
-                "summary": "Update a URL",
+                "summary": "Update a URL's target",
                 "parameters": [
                     {
                         "type": "integer",
@@ -191,12 +228,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "URL Input",
-                        "name": "urlInput",
+                        "description": "New target URL",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UrlInput"
+                            "$ref": "#/definitions/shortlink.Input"
                         }
                     }
                 ],
@@ -204,11 +241,18 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.UrlDto"
+                            "$ref": "#/definitions/shortlink.View"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -231,7 +275,11 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Delete a short URL by ID",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "tags": [
                     "URLs"
                 ],
@@ -251,6 +299,13 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -285,15 +340,15 @@ const docTemplate = `{
                 "tags": [
                     "Users"
                 ],
-                "summary": "Login a user",
+                "summary": "Log in",
                 "parameters": [
                     {
                         "description": "Login details",
-                        "name": "loginDto",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UserLoginDto"
+                            "$ref": "#/definitions/user.LoginInput"
                         }
                     }
                 ],
@@ -301,7 +356,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.UserLoginResponseDto"
+                            "$ref": "#/definitions/user.Session"
                         }
                     },
                     "400": {
@@ -335,19 +390,25 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve information about the authenticated user",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Users"
                 ],
-                "summary": "Get user info",
+                "summary": "Get the current user",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.UserDto"
+                            "$ref": "#/definitions/user.Profile"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "404": {
@@ -372,7 +433,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update the authenticated user's information",
+                "description": "Change the name and/or password. current_password is required when changing the password.",
                 "consumes": [
                     "application/json"
                 ],
@@ -382,15 +443,15 @@ const docTemplate = `{
                 "tags": [
                     "Users"
                 ],
-                "summary": "Update user info",
+                "summary": "Update the current user",
                 "parameters": [
                     {
-                        "description": "User update details. current_password is required when changing password",
-                        "name": "updateDto",
+                        "description": "Fields to change",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UserUpdateDto"
+                            "$ref": "#/definitions/user.UpdateInput"
                         }
                     }
                 ],
@@ -398,11 +459,18 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.UserDto"
+                            "$ref": "#/definitions/user.Profile"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -437,15 +505,15 @@ const docTemplate = `{
                 "tags": [
                     "Users"
                 ],
-                "summary": "Register a new user",
+                "summary": "Register",
                 "parameters": [
                     {
                         "description": "Registration details",
-                        "name": "createDto",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UserCreateDto"
+                            "$ref": "#/definitions/user.RegisterInput"
                         }
                     }
                 ],
@@ -453,7 +521,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.UserDto"
+                            "$ref": "#/definitions/user.Profile"
                         }
                     },
                     "400": {
@@ -489,7 +557,29 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "models.UrlDto": {
+        "shortlink.Input": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "shortlink.Page": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/shortlink.View"
+                    }
+                },
+                "next_cursor": {
+                    "type": "string"
+                }
+            }
+        },
+        "shortlink.View": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -515,35 +605,10 @@ const docTemplate = `{
                 }
             }
         },
-        "models.UrlInput": {
-            "type": "object",
-            "properties": {
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.UrlPage": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.UrlDto"
-                    }
-                },
-                "next_cursor": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.UserCreateDto": {
+        "user.LoginInput": {
             "type": "object",
             "properties": {
                 "email": {
-                    "type": "string"
-                },
-                "name": {
                     "type": "string"
                 },
                 "password": {
@@ -551,7 +616,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.UserDto": {
+        "user.Profile": {
             "type": "object",
             "properties": {
                 "email": {
@@ -568,10 +633,13 @@ const docTemplate = `{
                 }
             }
         },
-        "models.UserLoginDto": {
+        "user.RegisterInput": {
             "type": "object",
             "properties": {
                 "email": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "password": {
@@ -579,7 +647,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.UserLoginResponseDto": {
+        "user.Session": {
             "type": "object",
             "properties": {
                 "email": {
@@ -593,10 +661,13 @@ const docTemplate = `{
                 },
                 "token": {
                     "type": "string"
+                },
+                "verified": {
+                    "type": "boolean"
                 }
             }
         },
-        "models.UserUpdateDto": {
+        "user.UpdateInput": {
             "type": "object",
             "properties": {
                 "current_password": {
@@ -610,17 +681,25 @@ const docTemplate = `{
                 }
             }
         }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "\"Bearer \u003ctoken\u003e\" from POST /users/login",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8086",
+	Host:             "",
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "URL Shortener API",
-	Description:      "This is a simple URL shortener admin API.",
+	Description:      "Admin API for creating and managing short URLs.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -59,6 +59,10 @@ func (h *Handler) redirect(ctx *fiber.Ctx) error {
 		Agent:      cleanAgent(ctx.Get(fiber.HeaderUserAgent)),
 		IPAddress:  utils.CopyString(ctx.IP()),
 	})
+	// 302 and no caching: every visit reaches this service, so each click is
+	// counted and an edited or deleted link takes effect immediately. A 301 or
+	// a cacheable 302 would let browsers skip us.
+	ctx.Set(fiber.HeaderCacheControl, "private, max-age=0")
 	return ctx.Redirect(entry.Target, fiber.StatusFound)
 }
 

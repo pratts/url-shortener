@@ -64,6 +64,9 @@ func TestRedirectRecordsClick(t *testing.T) {
 	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "https://example.com/x" {
 		t.Fatalf("got %d to %q", resp.StatusCode, resp.Header.Get("Location"))
 	}
+	if cc := resp.Header.Get("Cache-Control"); cc != "private, max-age=0" {
+		t.Fatalf("Cache-Control %q; redirects must not be cached or clicks go uncounted", cc)
+	}
 	if len(clicks.clicks) != 1 {
 		t.Fatalf("recorded %d clicks, want 1", len(clicks.clicks))
 	}

@@ -3,7 +3,7 @@ package admin
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -92,6 +92,7 @@ func serviceError(ctx *fiber.Ctx, err error, action string) error {
 	case errors.Is(err, user.ErrCurrentPassword):
 		return httpapi.Error(ctx, fiber.StatusForbidden, err.Error())
 	}
-	log.Printf("failed to %s: %v", action, err)
+	slog.ErrorContext(ctx.UserContext(), "request failed", "action", action,
+		"request_id", ctx.GetRespHeader(fiber.HeaderXRequestID), "err", err)
 	return httpapi.Error(ctx, fiber.StatusInternalServerError, "Failed to "+action)
 }

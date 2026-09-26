@@ -25,6 +25,10 @@ type Postgres struct {
 	Password string
 	Database string
 	SSLMode  string
+	// MaxOpenConns caps connections per process, so traffic spikes cannot
+	// exhaust the server's max_connections.
+	MaxOpenConns int
+	MaxIdleConns int
 }
 
 // DSN returns a URL-form connection string, so empty or special-character
@@ -54,9 +58,13 @@ func (r Redis) Addr() string {
 	return net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
 }
 
-// HTTP holds listener and reverse-proxy settings.
+// HTTP holds listener, logging and reverse-proxy settings.
 type HTTP struct {
 	Port string
+	// RequestTimeout bounds each request's database and cache calls.
+	RequestTimeout time.Duration
+	// LogFormat is "json" (default in production) or "text".
+	LogFormat string
 	// ProxyHeader holds the client IP (e.g. X-Forwarded-For) when behind a
 	// reverse proxy. Empty means use the socket address.
 	ProxyHeader    string
@@ -236,13 +244,22 @@ func (l *loader) baseURL(key string) string {
 }
 
 func (l *loader) http(portKey, defaultPort string) HTTP {
+	defaultFormat := "text"
+	if l.production {
+		defaultFormat = "json"
+	}
 	cfg := HTTP{
 		Port:           l.port(portKey, defaultPort),
+		RequestTimeout: time.Duration(l.positiveInt("REQUEST_TIMEOUT_SECONDS", 5)) * time.Second,
+		LogFormat:      l.optional("LOG_FORMAT", defaultFormat),
 		ProxyHeader:    l.optional("PROXY_HEADER", ""),
 		TrustedProxies: splitList(os.Getenv("TRUSTED_PROXIES")),
 	}
 	if cfg.ProxyHeader != "" && len(cfg.TrustedProxies) == 0 {
 		l.fail("TRUSTED_PROXIES must be set when PROXY_HEADER is set, otherwise client IPs can be spoofed")
+	}
+	if cfg.LogFormat != "json" && cfg.LogFormat != "text" {
+		l.fail("LOG_FORMAT must be json or text, got %q", cfg.LogFormat)
 	}
 	return cfg
 }
@@ -259,6 +276,12 @@ func (l *loader) postgres() Postgres {
 		Password: os.Getenv("DB_PASSWORD"),
 		Database: l.required("DB_DATABASE"),
 		SSLMode:  l.optional("DB_SSLMODE", defaultSSL),
+
+		MaxOpenConns: l.positiveInt("DB_MAX_OPEN_CONNS", 20),
+		MaxIdleConns: l.positiveInt("DB_MAX_IDLE_CONNS", 10),
+	}
+	if cfg.MaxIdleConns > cfg.MaxOpenConns {
+		l.fail("DB_MAX_IDLE_CONNS (%d) must not exceed DB_MAX_OPEN_CONNS (%d)", cfg.MaxIdleConns, cfg.MaxOpenConns)
 	}
 	if !sslModes[cfg.SSLMode] {
 		l.fail("DB_SSLMODE must be one of disable, allow, prefer, require, verify-ca, verify-full; got %q", cfg.SSLMode)

@@ -93,33 +93,33 @@ func (r *MemoryRepository) Delete(_ context.Context, id, owner uint64) (Link, er
 	return l, nil
 }
 
-// MemoryCache is an in-memory Cache for tests.
+// MemoryCache is an in-memory Cache for tests. Entries never expire.
 type MemoryCache struct {
 	mu      sync.Mutex
-	targets map[string]string
+	entries map[string]Entry
 }
 
 func NewMemoryCache() *MemoryCache {
-	return &MemoryCache{targets: map[string]string{}}
+	return &MemoryCache{entries: map[string]Entry{}}
 }
 
-func (c *MemoryCache) Get(_ context.Context, code string) (string, bool, error) {
+func (c *MemoryCache) Get(_ context.Context, code string) (Entry, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	t, ok := c.targets[code]
-	return t, ok, nil
+	e, ok := c.entries[code]
+	return e, ok, nil
 }
 
-func (c *MemoryCache) Set(_ context.Context, code, target string) error {
+func (c *MemoryCache) Set(_ context.Context, code string, e Entry) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.targets[code] = target
+	c.entries[code] = e
 	return nil
 }
 
 func (c *MemoryCache) Delete(_ context.Context, code string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	delete(c.targets, code)
+	delete(c.entries, code)
 	return nil
 }

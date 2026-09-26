@@ -118,3 +118,22 @@ func TestDSNEscapesValues(t *testing.T) {
 		}
 	}
 }
+
+func TestPoolTimeoutAndLogSettings(t *testing.T) {
+	setEnv(t, nil)
+	cfg, err := LoadRedirect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Postgres.MaxOpenConns != 20 || cfg.Postgres.MaxIdleConns != 10 || cfg.HTTP.RequestTimeout != 5*time.Second || cfg.HTTP.LogFormat != "json" {
+		t.Fatalf("defaults: %+v %+v", cfg.Postgres, cfg.HTTP)
+	}
+
+	setEnv(t, map[string]string{"DB_MAX_OPEN_CONNS": "5", "DB_MAX_IDLE_CONNS": "8", "LOG_FORMAT": "xml", "REQUEST_TIMEOUT_SECONDS": "0"})
+	_, err = LoadRedirect()
+	for _, want := range []string{"DB_MAX_IDLE_CONNS (8) must not exceed DB_MAX_OPEN_CONNS (5)", "LOG_FORMAT must be json or text", "REQUEST_TIMEOUT_SECONDS must be greater than 0"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("error does not mention %q: %v", want, err)
+		}
+	}
+}

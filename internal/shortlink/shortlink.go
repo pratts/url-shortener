@@ -40,10 +40,21 @@ type Repository interface {
 	Delete(ctx context.Context, id, owner uint64) (Link, error)
 }
 
-// Cache holds resolved targets by short code.
+// Entry is what the redirect path needs to know about a code: where it goes
+// and whose link it is, so a cache hit needs no database access. Missing marks
+// a code known not to exist.
+type Entry struct {
+	LinkID  uint64 `json:"id,omitempty"`
+	Owner   uint64 `json:"owner,omitempty"`
+	Target  string `json:"target,omitempty"`
+	Missing bool   `json:"missing,omitempty"`
+}
+
+// Cache holds resolved entries by short code. Implementations keep Missing
+// entries for a much shorter time than real ones.
 type Cache interface {
-	Get(ctx context.Context, code string) (target string, ok bool, err error)
-	Set(ctx context.Context, code, target string) error
+	Get(ctx context.Context, code string) (e Entry, ok bool, err error)
+	Set(ctx context.Context, code string, e Entry) error
 	Delete(ctx context.Context, code string) error
 }
 

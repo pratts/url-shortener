@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/url"
 	"strconv"
 	"strings"
@@ -18,6 +18,24 @@ const (
 	maxURLLength    = 2048
 	maxCodeAttempts = 5
 )
+
+// reservedCodes are valid-looking codes the redirect service routes itself.
+var reservedCodes = map[string]bool{"healthz": true}
+
+// ValidCode reports whether code could be a generated short code, so requests
+// for anything else can be answered without touching the cache or database.
+func ValidCode(code string) bool {
+	if len(code) != codeLength || reservedCodes[code] {
+		return false
+	}
+	for i := 0; i < len(code); i++ {
+		c := code[i]
+		if !('0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
+			return false
+		}
+	}
+	return true
+}
 
 // Service implements link operations on top of a Repository and Cache.
 type Service struct {
@@ -48,6 +66,15 @@ func NewService(repo Repository, cache Cache, baseURL string) (*Service, error) 
 // GenerateCode returns a random base62 code from crypto/rand. Bytes >= 248
 // are rejected so every character is equally likely (248 = 4 * 62).
 func GenerateCode() (string, error) {
+	for {
+		code, err := randomCode()
+		if err != nil || !reservedCodes[code] {
+			return code, err
+		}
+	}
+}
+
+func randomCode() (string, error) {
 	code := make([]byte, 0, codeLength)
 	buf := make([]byte, codeLength*2)
 	for len(code) < codeLength {
@@ -115,12 +142,14 @@ func (s *Service) Create(ctx context.Context, owner uint64, target string) (View
 		l := Link{CreatedBy: owner, LongURL: target, ShortCode: code}
 		err = s.repo.Create(ctx, &l)
 		if err == nil {
+			// Clear any cached "not found" for this code from before it existed.
+			s.invalidate(ctx, code)
 			return s.View(l), nil
 		}
 		if !errors.Is(err, ErrCodeTaken) {
 			return View{}, err
 		}
-		log.Printf("short code collision on attempt %d, retrying", attempt)
+		slog.Warn("short code collision, retrying", "attempt", attempt)
 	}
 	return View{}, ErrCodesExhausted
 }
@@ -177,34 +206,43 @@ func (s *Service) Delete(ctx context.Context, id, owner uint64) error {
 	return nil
 }
 
-// Resolve returns the target for code, using the cache when possible. A
-// stored target that fails validation is treated as not found.
-func (s *Service) Resolve(ctx context.Context, code string) (string, error) {
-	if target, ok, err := s.cache.Get(ctx, code); err == nil && ok {
-		return target, nil
-	} else if err != nil {
-		log.Printf("cache read for %s failed, falling back to the database: %v", code, err)
+// Resolve returns what the redirect path needs for code, using the cache when
+// possible. Malformed codes, unknown codes and stored targets that fail
+// validation all return ErrNotFound; misses are cached briefly.
+func (s *Service) Resolve(ctx context.Context, code string) (Entry, error) {
+	if !ValidCode(code) {
+		return Entry{}, ErrNotFound
 	}
-	l, err := s.repo.ByCode(ctx, code)
-	if err != nil {
-		return "", err
+	if e, ok, err := s.cache.Get(ctx, code); err != nil {
+		slog.WarnContext(ctx, "cache read failed, using the database", "code", code, "err", err)
+	} else if ok {
+		if e.Missing {
+			return Entry{}, ErrNotFound
+		}
+		return e, nil
 	}
-	if _, err := s.ValidateTarget(l.LongURL); err != nil {
-		return "", ErrNotFound
-	}
-	if err := s.cache.Set(ctx, code, l.LongURL); err != nil {
-		log.Printf("cache write for %s failed: %v", code, err)
-	}
-	return l.LongURL, nil
-}
 
-// ByCode returns the stored link for code, bypassing the cache.
-func (s *Service) ByCode(ctx context.Context, code string) (Link, error) {
-	return s.repo.ByCode(ctx, code)
+	l, err := s.repo.ByCode(ctx, code)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return Entry{}, err
+	}
+	e := Entry{Missing: true}
+	if err == nil {
+		if _, invalid := s.ValidateTarget(l.LongURL); invalid == nil {
+			e = Entry{LinkID: l.ID, Owner: l.CreatedBy, Target: l.LongURL}
+		}
+	}
+	if err := s.cache.Set(ctx, code, e); err != nil {
+		slog.WarnContext(ctx, "cache write failed", "code", code, "err", err)
+	}
+	if e.Missing {
+		return Entry{}, ErrNotFound
+	}
+	return e, nil
 }
 
 func (s *Service) invalidate(ctx context.Context, code string) {
 	if err := s.cache.Delete(ctx, code); err != nil {
-		log.Printf("failed to invalidate cache for %s, it will expire after the TTL: %v", code, err)
+		slog.WarnContext(ctx, "cache invalidation failed; the entry expires after its TTL", "code", code, "err", err)
 	}
 }

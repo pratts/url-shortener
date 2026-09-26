@@ -94,11 +94,15 @@ func TestServiceWithRedisCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { linkCache.Delete(ctx, created.ShortCode) })
-	if target, err := svc.Resolve(ctx, created.ShortCode); err != nil || target != "https://example.com/old" {
-		t.Fatalf("resolve: %q, %v", target, err)
+	if e, err := svc.Resolve(ctx, created.ShortCode); err != nil || e.Target != "https://example.com/old" || e.LinkID != created.ID {
+		t.Fatalf("resolve: %+v, %v", e, err)
 	}
-	if ttl := rdb.TTL(ctx, "url:"+created.ShortCode).Val(); ttl <= 0 || ttl > time.Minute {
+	if ttl := rdb.TTL(ctx, "link:"+created.ShortCode).Val(); ttl <= 0 || ttl > time.Minute {
 		t.Fatalf("cached entry TTL %v, want (0, 1m]", ttl)
+	}
+	cached, ok, err := linkCache.Get(ctx, created.ShortCode)
+	if err != nil || !ok || cached.Owner != owner || cached.Target != "https://example.com/old" {
+		t.Fatalf("cache should hold the full entry: %+v, %v, %v", cached, ok, err)
 	}
 	if _, err := svc.Update(ctx, created.ID, owner, "https://example.com/new"); err != nil {
 		t.Fatal(err)
@@ -111,6 +115,12 @@ func TestServiceWithRedisCache(t *testing.T) {
 	}
 	if _, err := svc.Resolve(ctx, created.ShortCode); !errors.Is(err, shortlink.ErrNotFound) {
 		t.Fatalf("resolve after delete: %v", err)
+	}
+	if e, ok, _ := linkCache.Get(ctx, created.ShortCode); !ok || !e.Missing {
+		t.Fatalf("a miss should be cached: %+v, %v", e, ok)
+	}
+	if ttl := rdb.TTL(ctx, "link:"+created.ShortCode).Val(); ttl <= 0 || ttl > time.Minute {
+		t.Fatalf("miss TTL %v, want (0, 1m]", ttl)
 	}
 }
 

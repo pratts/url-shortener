@@ -6,16 +6,14 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-
-WORKDIR /app/server/redirect
-RUN go build -o /redirect-app main.go
+RUN go build -o /out/redirect ./cmd/redirect
 
 # Run stage
 FROM alpine:latest
 WORKDIR /app
 
-COPY --from=builder /redirect-app .
+COPY --from=builder /out/redirect ./
 
 EXPOSE 8085
 
-CMD ["./redirect-app"]
+CMD ["./redirect"]

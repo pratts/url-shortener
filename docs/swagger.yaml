@@ -1,6 +1,20 @@
 basePath: /api/v1
 definitions:
-  models.UrlDto:
+  shortlink.Input:
+    properties:
+      url:
+        type: string
+    type: object
+  shortlink.Page:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/shortlink.View'
+        type: array
+      next_cursor:
+        type: string
+    type: object
+  shortlink.View:
     properties:
       created_at:
         type: string
@@ -17,30 +31,14 @@ definitions:
       url:
         type: string
     type: object
-  models.UrlInput:
-    properties:
-      url:
-        type: string
-    type: object
-  models.UrlPage:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/models.UrlDto'
-        type: array
-      next_cursor:
-        type: string
-    type: object
-  models.UserCreateDto:
+  user.LoginInput:
     properties:
       email:
-        type: string
-      name:
         type: string
       password:
         type: string
     type: object
-  models.UserDto:
+  user.Profile:
     properties:
       email:
         type: string
@@ -51,14 +49,16 @@ definitions:
       verified:
         type: boolean
     type: object
-  models.UserLoginDto:
+  user.RegisterInput:
     properties:
       email:
+        type: string
+      name:
         type: string
       password:
         type: string
     type: object
-  models.UserLoginResponseDto:
+  user.Session:
     properties:
       email:
         type: string
@@ -68,8 +68,10 @@ definitions:
         type: string
       token:
         type: string
+      verified:
+        type: boolean
     type: object
-  models.UserUpdateDto:
+  user.UpdateInput:
     properties:
       current_password:
         type: string
@@ -78,13 +80,11 @@ definitions:
       password:
         type: string
     type: object
-host: localhost:8086
 info:
   contact:
     email: prateeksharma.2801@gmail.com
     name: Prateek Sharma
-  description: This is a simple URL shortener admin API.
-  termsOfService: http://swagger.io/terms/
+  description: Admin API for creating and managing short URLs.
   title: URL Shortener API
   version: "1.0"
 paths:
@@ -109,9 +109,14 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.UrlPage'
+            $ref: '#/definitions/shortlink.Page'
         "400":
           description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
           schema:
             additionalProperties: true
             type: object
@@ -120,169 +125,28 @@ paths:
           schema:
             additionalProperties: true
             type: object
+      security:
+      - BearerAuth: []
       summary: List URLs
       tags:
       - URLs
     post:
       consumes:
       - application/json
-      description: Create a short URL for a given long URL
       parameters:
-      - description: URL Input
+      - description: Target URL
         in: body
-        name: urlInput
+        name: body
         required: true
         schema:
-          $ref: '#/definitions/models.UrlInput'
+          $ref: '#/definitions/shortlink.Input'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.UrlDto'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-        "429":
-          description: Too Many Requests
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Create a short URL
-      tags:
-      - URLs
-  /urls/{id}:
-    delete:
-      description: Delete a short URL by ID
-      parameters:
-      - description: URL ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Delete a URL
-      tags:
-      - URLs
-    get:
-      description: Get details of a specific short URL by ID
-      parameters:
-      - description: URL ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.UrlDto'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Get URL details
-      tags:
-      - URLs
-    put:
-      consumes:
-      - application/json
-      description: Update the long URL for a given short URL ID
-      parameters:
-      - description: URL ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: URL Input
-        in: body
-        name: urlInput
-        required: true
-        schema:
-          $ref: '#/definitions/models.UrlInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.UrlDto'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Update a URL
-      tags:
-      - URLs
-  /users/login:
-    post:
-      consumes:
-      - application/json
-      description: Authenticate with email and password and return a JWT token. Email
-        matching is case-insensitive.
-      parameters:
-      - description: Login details
-        in: body
-        name: loginDto
-        required: true
-        schema:
-          $ref: '#/definitions/models.UserLoginDto'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.UserLoginResponseDto'
+            $ref: '#/definitions/shortlink.View'
         "400":
           description: Bad Request
           schema:
@@ -298,19 +162,37 @@ paths:
           schema:
             additionalProperties: true
             type: object
-      summary: Login a user
-      tags:
-      - Users
-  /users/me:
-    get:
-      description: Retrieve information about the authenticated user
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
+        "500":
+          description: Internal Server Error
           schema:
-            $ref: '#/definitions/models.UserDto'
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a short URL
+      tags:
+      - URLs
+  /urls/{id}:
+    delete:
+      parameters:
+      - description: URL ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
         "404":
           description: Not Found
           schema:
@@ -323,30 +205,188 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Get user info
+      summary: Delete a URL
       tags:
-      - Users
-    patch:
-      consumes:
-      - application/json
-      description: Update the authenticated user's information
+      - URLs
+    get:
       parameters:
-      - description: User update details. current_password is required when changing
-          password
-        in: body
-        name: updateDto
+      - description: URL ID
+        in: path
+        name: id
         required: true
-        schema:
-          $ref: '#/definitions/models.UserUpdateDto'
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.UserDto'
+            $ref: '#/definitions/shortlink.View'
         "400":
           description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a URL
+      tags:
+      - URLs
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: URL ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New target URL
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/shortlink.Input'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlink.View'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a URL's target
+      tags:
+      - URLs
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate with email and password and return a JWT token. Email
+        matching is case-insensitive.
+      parameters:
+      - description: Login details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user.Session'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "429":
+          description: Too Many Requests
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Log in
+      tags:
+      - Users
+  /users/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user.Profile'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get the current user
+      tags:
+      - Users
+    patch:
+      consumes:
+      - application/json
+      description: Change the name and/or password. current_password is required when
+        changing the password.
+      parameters:
+      - description: Fields to change
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.UpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user.Profile'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
           schema:
             additionalProperties: true
             type: object
@@ -362,7 +402,7 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Update user info
+      summary: Update the current user
       tags:
       - Users
   /users/register:
@@ -376,17 +416,17 @@ paths:
       parameters:
       - description: Registration details
         in: body
-        name: createDto
+        name: body
         required: true
         schema:
-          $ref: '#/definitions/models.UserCreateDto'
+          $ref: '#/definitions/user.RegisterInput'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.UserDto'
+            $ref: '#/definitions/user.Profile'
         "400":
           description: Invalid body, or per-field errors under \"fields\
           schema:
@@ -407,7 +447,13 @@ paths:
           schema:
             additionalProperties: true
             type: object
-      summary: Register a new user
+      summary: Register
       tags:
       - Users
+securityDefinitions:
+  BearerAuth:
+    description: '"Bearer <token>" from POST /users/login'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

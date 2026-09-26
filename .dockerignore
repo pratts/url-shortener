@@ -1,0 +1,13 @@
+# Keep secrets, VCS data and local artifacts out of the build context.
+.env
+.env.*
+!.env.example
+.git
+.github
+tmp/
+*.log
+*.test
+*.out
+Dockerfile
+docker-compose.yml
+.dockerignore

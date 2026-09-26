@@ -1,0 +1,159 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.27.x"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then echo "Run gofmt on:"; echo "$unformatted"; exit 1; fi
+      - name: go vet
+        run: go vet ./...
+      - name: staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.1 ./...
+      - name: go.mod is tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+      - name: Swagger docs are up to date
+        run: |
+          go run github.com/swaggo/swag/cmd/swag@v1.16.4 init -g main.go \
+            -d ./cmd/admin,./internal/httpapi/admin,./internal/shortlink,./internal/user -o docs
+          git diff --exit-code docs/
+
+  test:
+    name: Test (unit + integration)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: shortener
+          POSTGRES_PASSWORD: shortener
+          POSTGRES_DB: shortener_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U shortener -d shortener_test"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+      redis:
+        image: redis:7.4
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      SHORTENER_TEST_DB: shortener_test
+      SHORTENER_TEST_DB_USER: shortener
+      SHORTENER_TEST_DB_PASSWORD: shortener
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Tests with race detector
+        # -p 1: integration tests share one database.
+        run: go test -race -p 1 -coverprofile=coverage.out ./...
+      - name: Coverage summary
+        run: go tool cover -func=coverage.out | tail -1
+
+  vulncheck:
+    name: Vulnerability check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+
+  compose:
+    name: Docker images + compose smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Configure
+        run: |
+          cp .env.example .env
+          # Replace each key in place (or append it) so there are no duplicates.
+          set_env() { grep -q "^$1=" .env && sed -i "s|^$1=.*|$1=$2|" .env || echo "$1=$2" >> .env; }
+          set_env ENV production
+          set_env DB_SSLMODE disable
+          set_env LOG_FORMAT json
+          set_env JWT_SIGNING_KEY "$(openssl rand -hex 32)"
+          set_env REDIS_PASSWORD "$(openssl rand -hex 16)"
+          grep -v -E '^(JWT_SIGNING_KEY|REDIS_PASSWORD|DB_PASSWORD)=' .env | grep -v '^#' | grep .
+      - name: Build and start
+        run: docker compose up -d --build
+      - name: Wait for readiness
+        run: |
+          for svc in 8086 8085; do
+            for i in $(seq 1 60); do
+              curl -fsS "http://localhost:$svc/readyz" && echo && break
+              [ "$i" = 60 ] && { echo "port $svc never became ready"; exit 1; }
+              sleep 2
+            done
+          done
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          A=http://localhost:8086/api/v1
+          curl -fsS -X POST $A/users/register -H 'Content-Type: application/json' \
+            -d '{"email":"ci@example.com","name":"CI","password":"correct-horse"}'
+          TOKEN=$(curl -fsS -X POST $A/users/login -H 'Content-Type: application/json' \
+            -d '{"email":"ci@example.com","password":"correct-horse"}' | jq -r .token)
+          CODE=$(curl -fsS -X POST $A/urls -H "Authorization: Bearer $TOKEN" \
+            -H 'Content-Type: application/json' -d '{"url":"https://example.com/ci"}' | jq -r .short_code)
+          headers=$(curl -sS -o /dev/null -D - "http://localhost:8085/$CODE")
+          echo "$headers"
+          echo "$headers" | grep -q '^HTTP/1.1 302'
+          echo "$headers" | grep -qi '^location: https://example.com/ci'
+          echo "$headers" | grep -qi '^cache-control: private, max-age=0'
+          test "$(curl -fsS "$A/urls" -H "Authorization: Bearer $TOKEN" | jq '.items | length')" = 1
+      - name: Datastores are not reachable from the host
+        run: |
+          for port in 5432 6379; do
+            if timeout 3 bash -c "</dev/tcp/127.0.0.1/$port" 2>/dev/null; then
+              echo "port $port is exposed on the host"; exit 1
+            fi
+          done
+      - name: Containers run as non-root
+        run: |
+          for svc in admin redirect; do
+            user=$(docker inspect --format '{{.Config.User}}' "$(docker compose ps -q $svc)")
+            echo "$svc runs as $user"
+            [ "$user" = "nonroot:nonroot" ]
+          done
+      - name: Graceful shutdown writes queued clicks
+        run: |
+          docker compose stop redirect
+          docker compose logs redirect | grep '"click writer stopped"'
+          clicks=$(docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select count(*) from url_redirects"')
+          echo "clicks stored: $clicks"
+          [ "$clicks" = 1 ]
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

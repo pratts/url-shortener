@@ -1,6 +1,8 @@
 // Package testdb connects integration tests to real Postgres and Redis. Tests
-// using it are skipped unless SHORTENER_TEST_DB names a Postgres database
-// (on localhost, as $USER) that they may freely modify.
+// using it are skipped unless SHORTENER_TEST_DB names a Postgres database they
+// may freely modify. Connection settings default to a local server with the
+// current user and no password; override them with SHORTENER_TEST_DB_HOST,
+// _PORT, _USER and _PASSWORD, and SHORTENER_TEST_REDIS_HOST/_PORT/_DB.
 package testdb
 
 import (
@@ -27,9 +29,27 @@ func Config(t *testing.T) config.Postgres {
 		t.Skip("SHORTENER_TEST_DB not set; skipping integration test")
 	}
 	return config.Postgres{
-		Host: "localhost", Port: 5432, User: os.Getenv("USER"),
-		Database: name, SSLMode: "disable",
+		Host:     env("SHORTENER_TEST_DB_HOST", "localhost"),
+		Port:     envInt("SHORTENER_TEST_DB_PORT", 5432),
+		User:     env("SHORTENER_TEST_DB_USER", os.Getenv("USER")),
+		Password: os.Getenv("SHORTENER_TEST_DB_PASSWORD"),
+		Database: name,
+		SSLMode:  "disable",
 	}
+}
+
+func env(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
+}
+
+func envInt(key string, def int) int {
+	if n, err := strconv.Atoi(os.Getenv(key)); err == nil {
+		return n
+	}
+	return def
 }
 
 // Postgres opens the test database, applies migrations and empties every table.
@@ -50,15 +70,16 @@ func Postgres(t *testing.T) *gorm.DB {
 	return db
 }
 
-// Redis connects to the Redis DB named by SHORTENER_TEST_REDIS_DB (default 13).
+// Redis connects to Redis DB SHORTENER_TEST_REDIS_DB (default 13).
 func Redis(t *testing.T) *redis.Client {
 	t.Helper()
 	Config(t)
-	n, _ := strconv.Atoi(os.Getenv("SHORTENER_TEST_REDIS_DB"))
-	if n == 0 {
-		n = 13
-	}
-	rdb, err := platform.OpenRedis(config.Redis{Host: "localhost", Port: 6379, DB: n, TTL: time.Minute})
+	rdb, err := platform.OpenRedis(config.Redis{
+		Host: env("SHORTENER_TEST_REDIS_HOST", "localhost"),
+		Port: envInt("SHORTENER_TEST_REDIS_PORT", 6379),
+		DB:   envInt("SHORTENER_TEST_REDIS_DB", 13),
+		TTL:  time.Minute,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

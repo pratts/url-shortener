@@ -12,7 +12,8 @@ url-shortener/
 │   ├── admin/          # Admin API entry point
 │   ├── redirect/       # Redirect service entry point
 │   ├── migrate/        # Applies database migrations (run before the services)
-│   └── seed/           # Creates a user directly, e.g. when registration is off
+│   ├── seed/           # Creates a user directly, e.g. when registration is off
+│   └── healthcheck/    # Container health probe (the images have no shell)
 ├── internal/
 │   ├── config/         # Typed, validated configuration per service
 │   ├── platform/       # Postgres and Redis connections
@@ -32,7 +33,7 @@ interfaces, so they can be tested with the in-memory implementations.
 
 ## Getting Started
 ### Prerequisites
-- Go 1.24.1 or later
+- Go 1.25 or later (CI and the Docker images build with Go 1.27)
 - Postgres 15 or later
 - Redis 7.4 or later
 - Docker and Docker Compose (optional)
@@ -67,10 +68,23 @@ cp .env.example .env   # set JWT_SIGNING_KEY and REDIS_PASSWORD
 docker compose up --build
 ```
 Compose starts Postgres and Redis, runs the migrations once, then starts the
-admin API on 8086 and the redirector on 8085.
+admin API on 8086 and the redirector on 8085. Postgres and Redis are on an
+internal network with no published ports, as in production: only the two Go
+services can reach them.
+
+One `Dockerfile` builds both images (`--target admin` or `--target redirect`).
+They are distroless, run as a non-root user, contain static stripped binaries,
+and have a built-in health check against `/readyz`. The admin image also
+contains `migrate` and `seed`.
 
 ### Deploying
-Run `migrate` as a release step before starting new versions of the services.
+Postgres and Redis are expected on a private network that only the Go services
+can reach. On such a network `DB_SSLMODE=disable` is acceptable if the database
+does not offer TLS; otherwise keep the production default, `require`. Keep a
+Redis password regardless.
+
+Run `migrate` as a release step before starting new versions of the services
+(with the admin image: `/app/migrate`).
 Services only need read/write access to the tables, so they can use a
 database role without DDL rights; only `migrate` needs to alter the schema.
 
@@ -108,6 +122,13 @@ dropped and counted in the logs rather than slowing redirects.
 ```bash
 go test ./...
 ```
+CI (GitHub Actions) runs on every pull request and push to `main`:
+- **Lint:** gofmt, `go vet`, staticcheck, a tidy `go.mod`, and generated Swagger docs.
+- **Tests:** unit and integration tests with the race detector, against Postgres and Redis service containers.
+- **Vulnerabilities:** govulncheck.
+- **Compose smoke test:** builds the images, starts the stack, and checks registration, link creation and redirects. It also checks that Postgres and Redis are not reachable from the host, that the containers run as non-root, and that clicks are written on shutdown.
+
+Dependabot proposes weekly updates for Go modules, base images and Actions.
 Integration tests for the Postgres and Redis code run when `SHORTENER_TEST_DB`
 names a local database they may modify (Redis DB 13 by default, or
 `SHORTENER_TEST_REDIS_DB`):

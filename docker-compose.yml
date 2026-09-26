@@ -1,13 +1,16 @@
-# Local stack: Postgres, Redis, a one-off migration, then both services.
-# Settings come from .env (copy .env.example); hosts are overridden below to
-# reach the containers.
-x-app-env: &app-env
+# Local stack mirroring production: Postgres and Redis sit on an internal
+# network with no published ports; only the admin API and the redirect
+# service are reachable from the host. Settings come from .env (copy
+# .env.example); hosts are overridden below to reach the containers.
+x-app: &app
   env_file: .env
   environment:
     DB_HOST: postgres
     DB_PORT: "5432"
     REDIS_HOST: redis
     REDIS_PORT: "6379"
+  networks: [backend, public]
+  restart: unless-stopped
 
 services:
   postgres:
@@ -15,12 +18,10 @@ services:
     environment:
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    # Bound to localhost only; the services reach Postgres over the compose network.
-    ports:
-      - "127.0.0.1:5432:5432"
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
     volumes:
       - pg_data:/var/lib/postgresql/data
+    networks: [backend]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 2s
@@ -39,39 +40,31 @@ services:
       - 256mb
       - --maxmemory-policy
       - volatile-lru
-    ports:
-      - "127.0.0.1:6379:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    networks: [backend]
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep -q PONG"]
       interval: 2s
       timeout: 5s
       retries: 30
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
 
   # Applies database migrations and exits; the services wait for it.
   migrate:
-    <<: *app-env
-    build:
-      context: .
-      dockerfile: Dockerfile.admin
-    command: ["./migrate"]
+    <<: *app
+    build: { context: ., target: admin }
+    entrypoint: ["/app/migrate"]
+    networks: [backend]
+    restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
 
   admin:
-    <<: *app-env
-    build:
-      context: .
-      dockerfile: Dockerfile.admin
+    <<: *app
+    build: { context: ., target: admin }
     ports:
       - "8086:8086"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/readyz >/dev/null"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -79,22 +72,21 @@ services:
         condition: service_healthy
 
   redirect:
-    <<: *app-env
-    build:
-      context: .
-      dockerfile: Dockerfile.redirect
+    <<: *app
+    build: { context: ., target: redirect }
     ports:
       - "8085:8085"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/readyz >/dev/null"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
     depends_on:
       migrate:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+
+networks:
+  # No route in or out: only containers on this network can reach the datastores.
+  backend:
+    internal: true
+  public: {}
 
 volumes:
   pg_data:

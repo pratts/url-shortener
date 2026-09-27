@@ -103,6 +103,31 @@ jobs:
           set_env JWT_SIGNING_KEY "$(openssl rand -hex 32)"
           set_env REDIS_PASSWORD "$(openssl rand -hex 16)"
           grep -v -E '^(JWT_SIGNING_KEY|REDIS_PASSWORD|DB_PASSWORD)=' .env | grep -v '^#' | grep .
+      - name: Images build without --target (as on Railway)
+        run: |
+          set -euo pipefail
+          # Railway rejects cache mounts that lack its own service IDs.
+          if grep -n -- '--mount=type=cache' Dockerfile; then
+            echo "Dockerfile must not use cache mounts (Railway can't build them)"; exit 1
+          fi
+          docker build -q -t check-default .
+          docker build -q --build-arg APP=redirect -t check-redirect .
+          docker build -q --build-arg APP=admin -t check-admin .
+          for pair in "check-default /app/admin" "check-admin /app/admin" "check-redirect /app/redirect"; do
+            set -- $pair
+            got=$(docker inspect --format '{{index .Config.Entrypoint 0}} {{.Config.User}}' "$1")
+            echo "$1: $got"
+            [ "$got" = "$2 nonroot:nonroot" ]
+          done
+          # The redirect image must not carry the admin-only binaries.
+          docker create --name redirect-files check-redirect >/dev/null
+          if docker cp redirect-files:/app/migrate /tmp/migrate 2>/dev/null; then
+            echo "redirect image unexpectedly contains migrate"; exit 1
+          fi
+          docker rm redirect-files >/dev/null
+          if docker build -q --build-arg APP=nonsense . 2>/dev/null; then
+            echo "an unknown APP value should fail the build"; exit 1
+          fi
       - name: Build and start
         run: docker compose up -d --build
       - name: Wait for readiness

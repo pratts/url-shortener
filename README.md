@@ -72,7 +72,9 @@ admin API on 8086 and the redirector on 8085. Postgres and Redis are on an
 internal network with no published ports, as in production: only the two Go
 services can reach them.
 
-One `Dockerfile` builds both images (`--target admin` or `--target redirect`).
+One `Dockerfile` builds both images: `--target admin` or `--target redirect`,
+or, where the builder can't choose a target (such as Railway), the
+`APP=admin|redirect` build argument. With neither, it builds the admin image.
 They are distroless, run as a non-root user, contain static stripped binaries,
 and have a built-in health check against `/readyz`. The admin image also
 contains `migrate` and `seed`.

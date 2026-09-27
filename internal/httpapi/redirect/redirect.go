@@ -33,10 +33,11 @@ type ClickRecorder interface {
 type Handler struct {
 	Links  Resolver
 	Clicks ClickRecorder
+	Limits *ratelimit.Limits
 }
 
 func (h *Handler) Register(app fiber.Router) {
-	app.Get("/:code", ratelimit.RedirectByIP(), h.redirect)
+	app.Get("/:code", h.Limits.RedirectByIP(), h.redirect)
 }
 
 func (h *Handler) redirect(ctx *fiber.Ctx) error {

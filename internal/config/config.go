@@ -65,6 +65,9 @@ type HTTP struct {
 	RequestTimeout time.Duration
 	// LogFormat is "json" (default in production) or "text".
 	LogFormat string
+	// RateLimits turns request limits on (the default) or off. Off is only for
+	// local development and end-to-end tests and is refused in production.
+	RateLimits bool
 	// ProxyHeader holds the client IP (e.g. X-Forwarded-For) when behind a
 	// reverse proxy. Empty means use the socket address.
 	ProxyHeader    string
@@ -252,6 +255,7 @@ func (l *loader) http(portKey, defaultPort string) HTTP {
 		Port:           l.port(portKey, defaultPort),
 		RequestTimeout: time.Duration(l.positiveInt("REQUEST_TIMEOUT_SECONDS", 5)) * time.Second,
 		LogFormat:      l.optional("LOG_FORMAT", defaultFormat),
+		RateLimits:     l.rateLimits(),
 		ProxyHeader:    l.optional("PROXY_HEADER", ""),
 		TrustedProxies: splitList(os.Getenv("TRUSTED_PROXIES")),
 	}
@@ -262,6 +266,22 @@ func (l *loader) http(portKey, defaultPort string) HTTP {
 		l.fail("LOG_FORMAT must be json or text, got %q", cfg.LogFormat)
 	}
 	return cfg
+}
+
+// rateLimits reads RATE_LIMITS ("on" or "off", default "on").
+func (l *loader) rateLimits() bool {
+	switch v := l.optional("RATE_LIMITS", "on"); v {
+	case "on":
+		return true
+	case "off":
+		if l.production {
+			l.fail("RATE_LIMITS=off is not allowed when ENV=production")
+		}
+		return false
+	default:
+		l.fail("RATE_LIMITS must be on or off, got %q", v)
+		return true
+	}
 }
 
 func (l *loader) postgres() Postgres {

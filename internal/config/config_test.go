@@ -137,3 +137,30 @@ func TestPoolTimeoutAndLogSettings(t *testing.T) {
 		}
 	}
 }
+
+func TestRateLimitsSetting(t *testing.T) {
+	setEnv(t, nil)
+	cfg, err := LoadAdmin()
+	if err != nil || !cfg.HTTP.RateLimits {
+		t.Fatalf("rate limits should default to on: %v, %v", cfg.HTTP.RateLimits, err)
+	}
+
+	setEnv(t, map[string]string{"RATE_LIMITS": "off"})
+	if _, err := LoadAdmin(); err == nil || !strings.Contains(err.Error(), "RATE_LIMITS=off is not allowed when ENV=production") {
+		t.Fatalf("off in production: got %v", err)
+	}
+	if _, err := LoadRedirect(); err == nil || !strings.Contains(err.Error(), "RATE_LIMITS=off is not allowed") {
+		t.Fatalf("off in production (redirect): got %v", err)
+	}
+
+	setEnv(t, map[string]string{"ENV": "development", "RATE_LIMITS": "off"})
+	cfg, err = LoadAdmin()
+	if err != nil || cfg.HTTP.RateLimits {
+		t.Fatalf("off outside production: %v, %v", cfg.HTTP.RateLimits, err)
+	}
+
+	setEnv(t, map[string]string{"RATE_LIMITS": "false"})
+	if _, err := LoadAdmin(); err == nil || !strings.Contains(err.Error(), `RATE_LIMITS must be on or off, got "false"`) {
+		t.Fatalf("invalid value: got %v", err)
+	}
+}

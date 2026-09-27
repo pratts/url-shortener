@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"shortener/internal/analytics"
+	"shortener/internal/ratelimit"
 	"shortener/internal/shortlink"
 
 	"github.com/gofiber/fiber/v2"
@@ -45,7 +46,7 @@ func (c *fakeClicks) Record(click analytics.Click) bool {
 
 func newApp(r Resolver, clicks ClickRecorder) *fiber.App {
 	app := fiber.New()
-	(&Handler{Links: r, Clicks: clicks}).Register(app)
+	(&Handler{Links: r, Clicks: clicks, Limits: ratelimit.New(nil)}).Register(app)
 	return app
 }
 

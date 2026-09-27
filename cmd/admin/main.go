@@ -64,11 +64,17 @@ func main() {
 		fatal(log, err)
 	}
 
+	limits := ratelimit.New(cache.NewLimiterStorage(rdb, "rl:"))
+	if !cfg.HTTP.RateLimits {
+		limits = ratelimit.Disabled()
+		log.Warn("rate limits are OFF (RATE_LIMITS=off); use only for local development and tests")
+	}
+
 	handler := &admin.Handler{
 		Links:               links,
 		Users:               user.NewService(user.NewGormRepository(db)),
 		Tokens:              tokens,
-		Limits:              ratelimit.New(cache.NewLimiterStorage(rdb, "rl:")),
+		Limits:              limits,
 		RegistrationEnabled: cfg.RegistrationEnabled,
 	}
 

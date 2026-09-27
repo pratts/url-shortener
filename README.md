@@ -99,6 +99,11 @@ Operations:
   app writes has a TTL; the services log a warning at startup if Redis has no
   memory limit.
 - **Postgres:** each process opens at most `DB_MAX_OPEN_CONNS` connections.
+- **Rate limits:** login (20 per 15 min per IP; 5 failed per 15 min per email),
+  registration (5 per hour per IP), link creation (30 per minute per user) and
+  redirects (120 per minute per IP). For local development and end-to-end test
+  runs, `RATE_LIMITS=off` disables all of them; the services log a warning, and
+  refuse to start with it when `ENV=production`.
 
 Clicks are written in batches off the request path. If the database falls
 behind and the in-memory queue (10,000 clicks) fills, further clicks are

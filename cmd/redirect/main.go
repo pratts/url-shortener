@@ -12,6 +12,7 @@ import (
 	"shortener/internal/httpapi"
 	"shortener/internal/httpapi/redirect"
 	"shortener/internal/platform"
+	"shortener/internal/ratelimit"
 	"shortener/internal/shortlink"
 )
 
@@ -50,7 +51,12 @@ func main() {
 		"postgres": sqlDB.PingContext,
 		"redis":    func(ctx context.Context) error { return rdb.Ping(ctx).Err() },
 	})
-	(&redirect.Handler{Links: links, Clicks: clicks}).Register(app)
+	limits := ratelimit.New(nil) // redirect counters stay in memory
+	if !cfg.HTTP.RateLimits {
+		limits = ratelimit.Disabled()
+		log.Warn("rate limits are OFF (RATE_LIMITS=off); use only for local development and tests")
+	}
+	(&redirect.Handler{Links: links, Clicks: clicks, Limits: limits}).Register(app)
 	app.Use(httpapi.NotFound)
 
 	err = httpapi.Serve(app, cfg.HTTP.Port, log,

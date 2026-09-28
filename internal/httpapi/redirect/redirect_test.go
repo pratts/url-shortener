@@ -2,7 +2,10 @@ package redirect
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
+	"io"
 	"net/http/httptest"
 	"strings"
 	"sync"
@@ -110,5 +113,84 @@ func TestCleanAgent(t *testing.T) {
 	got := cleanAgent(long)
 	if len(got) > maxAgentLength || !utf8.ValidString(got) {
 		t.Errorf("truncating multi-byte text gave %d bytes, valid UTF-8 %v", len(got), utf8.ValidString(got))
+	}
+}
+
+func TestHomepage(t *testing.T) {
+	clicks := &fakeClicks{}
+	app := newApp(fakeResolver{}, clicks)
+	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	page := string(body)
+
+	if resp.StatusCode != fiber.StatusOK || !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") {
+		t.Fatalf("got %d %q", resp.StatusCode, resp.Header.Get("Content-Type"))
+	}
+	for _, want := range []string{
+		"hobby project",
+		`href="https://admin.tidylnk.com"`,
+		`href="https://github.com/pratts/url-shortener"`,
+		`href="https://github.com/pratts/url-shortener-admin"`,
+		`href="https://www.linkedin.com/in/prateeksharma28"`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("homepage is missing %q", want)
+		}
+	}
+	if strings.Contains(strings.ToLower(page), "<script") {
+		t.Error("homepage must stay static: no scripts")
+	}
+	if resp.Header.Get("X-Content-Type-Options") != "nosniff" {
+		t.Error("missing X-Content-Type-Options")
+	}
+	if len(clicks.clicks) != 0 {
+		t.Fatalf("visiting the homepage recorded %d clicks", len(clicks.clicks))
+	}
+}
+
+func TestHomepageCSPAllowsExactlyItsStyle(t *testing.T) {
+	start := strings.Index(string(homePage), "<style>") + len("<style>")
+	end := strings.Index(string(homePage), "</style>")
+	sum := sha256.Sum256(homePage[start:end])
+	want := "style-src 'sha256-" + base64.StdEncoding.EncodeToString(sum[:]) + "'"
+
+	app := newApp(fakeResolver{}, &fakeClicks{})
+	resp, _ := app.Test(httptest.NewRequest("GET", "/", nil))
+	csp := resp.Header.Get("Content-Security-Policy")
+	for _, part := range []string{want, "default-src 'none'", "frame-ancestors 'none'"} {
+		if !strings.Contains(csp, part) {
+			t.Errorf("CSP %q is missing %q", csp, part)
+		}
+	}
+	if strings.Contains(csp, "unsafe-inline") || strings.Contains(csp, "script-src") {
+		t.Errorf("CSP must not allow inline code or scripts: %q", csp)
+	}
+	if strings.Count(string(homePage), "<style>") != 1 {
+		t.Error("the CSP hash covers exactly one <style> block")
+	}
+}
+
+func TestRobotsTxt(t *testing.T) {
+	app := newApp(fakeResolver{}, &fakeClicks{})
+	resp, _ := app.Test(httptest.NewRequest("GET", "/robots.txt", nil))
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != fiber.StatusOK || !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/plain") {
+		t.Fatalf("got %d %q", resp.StatusCode, resp.Header.Get("Content-Type"))
+	}
+	if string(body) != "User-agent: *\nAllow: /$\nDisallow: /\n" {
+		t.Fatalf("robots.txt = %q", body)
+	}
+}
+
+func TestHomepageIsNotRateLimited(t *testing.T) {
+	app := newApp(fakeResolver{}, &fakeClicks{})
+	for i := 0; i < 130; i++ {
+		resp, _ := app.Test(httptest.NewRequest("GET", "/", nil))
+		if resp.StatusCode != fiber.StatusOK {
+			t.Fatalf("request %d got %d; the redirect limit should not apply to the homepage", i+1, resp.StatusCode)
+		}
 	}
 }

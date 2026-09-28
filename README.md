@@ -3,7 +3,7 @@ A basic URL shortening service
 
 This is a hobby project to learn Golang. The application has 2 components:
 1. Admin Service: a RESTful API for creating accounts and managing short URLs.
-2. Url Redirector: a small HTTP server that redirects short URLs to their original long URLs and records clicks.
+2. Url Redirector: a small HTTP server that redirects short URLs to their original long URLs and records clicks. It also serves a static homepage at `/` (`internal/httpapi/redirect/home.html`, compiled into the binary) and a `robots.txt` that lets crawlers index the homepage but not follow short links.
 
 ## Project Structure
 ```

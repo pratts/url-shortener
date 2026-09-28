@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TidyLnk · a hobby URL shortener</title>
+<meta name="description" content="TidyLnk is a small URL shortener built and run by Prateek Sharma as a hobby project.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232f6fdb'/%3E%3Cpath d='M13.5 18.5l5-5M11 15l-2 2a3.5 3.5 0 005 5l2-2M21 17l2-2a3.5 3.5 0 00-5-5l-2 2' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root{color-scheme:light dark;--bg:#fbfbfa;--fg:#1d1d1f;--muted:#5f6368;--line:#e3e3e0;--link:#2159c4;--code:#f0f0ed}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--fg:#ececec;--muted:#a0a3a8;--line:#2c2c30;--link:#8ab4f8;--code:#222226}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+main{max-width:38rem;margin:0 auto;padding:4rem 1.25rem 2.5rem}
+h1{font-size:1.9rem;letter-spacing:-.02em;margin:0}
+h2{font-size:1rem;margin:2.25rem 0 .5rem}
+.tagline{color:var(--muted);margin:.25rem 0 1.75rem}
+p{margin:.75rem 0}
+a{color:var(--link);text-underline-offset:.15em}
+code{background:var(--code);border-radius:4px;padding:.1em .35em;font-size:.92em}
+ul{padding-left:1.2rem;margin:.5rem 0}
+li{margin:.35rem 0}
+.note{color:var(--muted);font-size:.93rem}
+footer{border-top:1px solid var(--line);margin-top:2.75rem;padding-top:1rem;color:var(--muted);font-size:.93rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>tidylnk</h1>
+  <p class="tagline">A small URL shortener, built as a hobby project.</p>
+
+  <p>
+    TidyLnk turns long links into short ones like <code>tidylnk.com/aZ3kP9q</code>
+    and counts how often they are opened. It is a personal project for learning
+    how to build and run a small service end to end: not a commercial product,
+    and with no guarantees.
+  </p>
+
+  <h2>Links</h2>
+  <ul>
+    <li><a href="https://admin.tidylnk.com">Admin panel</a>: create and manage short links</li>
+    <li><a href="https://github.com/pratts/url-shortener">Backend source</a>: Go, PostgreSQL and Redis</li>
+    <li><a href="https://github.com/pratts/url-shortener-admin">Admin panel source</a>: React and TypeScript</li>
+  </ul>
+
+  <h2>Built with</h2>
+  <p>Go (Fiber), PostgreSQL and Redis on Railway; a React admin panel on Vercel; DNS on Cloudflare.</p>
+
+  <p class="note">
+    Short links on this domain lead to other websites, which TidyLnk does not control.
+    To report an abusive link, <a href="https://github.com/pratts/url-shortener/issues">open an issue on GitHub</a>.
+  </p>
+
+  <footer>
+    Made by Prateek Sharma · <a href="https://www.linkedin.com/in/prateeksharma28">LinkedIn</a>
+  </footer>
+</main>
+</body>
+</html>

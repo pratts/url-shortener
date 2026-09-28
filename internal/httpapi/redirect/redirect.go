@@ -37,6 +37,10 @@ type Handler struct {
 }
 
 func (h *Handler) Register(app fiber.Router) {
+	// The homepage and robots.txt are registered before /:code so they take
+	// precedence; they are static, so they skip the redirect rate limit.
+	app.Get("/", h.home)
+	app.Get("/robots.txt", h.robots)
 	app.Get("/:code", h.Limits.RedirectByIP(), h.redirect)
 }
 

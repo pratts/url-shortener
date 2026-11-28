@@ -95,8 +95,8 @@ func (s *LimiterStorage) Delete(key string) error {
 func (s *LimiterStorage) Reset() error {
 	ctx := context.Background()
 	iter := s.rdb.Scan(ctx, 0, s.prefix+"*", 100).Iterator()
-	for iter.Next(ctx) {
-		if err := s.rdb.Del(ctx, iter.Val()).Err(); err != nil {
+	for key := range iter.Vals(ctx) {
+		if err := s.rdb.Del(ctx, key).Err(); err != nil {
 			return err
 		}
 	}
